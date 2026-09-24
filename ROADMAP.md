@@ -7,7 +7,7 @@
 ## M0 — リポジトリと計画
 
 - [x] README、ロードマップ、初期設計方針を作成する。
-- [ ] GitHub privateリポジトリを作成し、mainへ初期コミットをpushする。
+- [x] GitHub privateリポジトリを作成し、mainへ初期コミットをpushする。
 
 完了条件：private設定、リモートmainとローカルHEADの一致、計画ファイルの掲載を確認できる。
 
