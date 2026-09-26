@@ -220,9 +220,6 @@ export default function App() {
             keycap<span className="brand-light">studio</span>
           </span>
         </a>
-        <div className="workspace-label">
-          <span className="live-dot" /> PERSONAL WORKSPACE <span>01</span>
-        </div>
         <div className="library-heading">
           <h2>デザインライブラリ</h2>
           <span>{studies.length.toString().padStart(2, "0")}</span>
@@ -277,11 +274,10 @@ export default function App() {
           )}
         </nav>
         <div className="sidebar-footer">
-          <span className="eyebrow">YOUR IDEAS, ON YOUR DEVICE</span>
           <p>
             保存先はこのブラウザです。
             <br />
-            大切な案はJSONでバックアップ。
+            JSONでバックアップできます。
           </p>
           <button
             onClick={() =>
@@ -311,9 +307,6 @@ export default function App() {
       </aside>
       <main>
         <header className="topbar">
-          <div className="breadcrumb">
-            Workspace <span>/</span> <strong>Design studio</strong>
-          </div>
           <div className={`save-status ${storageError ? "error" : ""}`}>
             <span className="live-dot" />
             {blocked ? "自動保存停止中" : saveState}
@@ -353,11 +346,7 @@ export default function App() {
           </div>
         )}
         <section className="page-heading">
-          <div>
-            <span className="eyebrow">DESIGN WORKBENCH</span>
-            <h1>次のキーキャップを、ここから。</h1>
-            <p>色を探して、文字を添えて。アイデアをひとつのセットに。</p>
-          </div>
+          <h1>キーキャップデザイン</h1>
           <button className="quiet-button" onClick={() => add(true)}>
             ⧉ 案を複製
           </button>
@@ -392,7 +381,6 @@ export default function App() {
             <section className="preview-panel">
               <div className="preview-heading">
                 <div>
-                  <span className="eyebrow">LIVE PREVIEW</span>
                   <h2>{active.name}</h2>
                 </div>
                 <button
@@ -709,7 +697,7 @@ export default function App() {
             </div>
             <section className="export-bar">
               <div>
-                <strong>アイデアを持ち出そう。</strong>
+                <strong>画像を書き出す</strong>
                 <p>
                   {renderMode === "2d"
                     ? "透明背景で出力。PNGはこの端末のフォントで描画します。"
@@ -748,7 +736,7 @@ export default function App() {
           <section className="compare-section">
             <div className="compare-heading">
               <div>
-                <h2>同じ配列で、違いを見る。</h2>
+                <h2>デザインの比較</h2>
                 <p>2〜4案を選択。すべて同じ倍率・同じ視点で表示します。</p>
               </div>
               <span>{compareIds.length} / 4 SELECTED</span>
@@ -839,10 +827,6 @@ export default function App() {
           </section>
         )}
         <footer className="main-footer">
-          <span>
-            KEYCAP STUDIO <span className="muted">/</span> DESIGN STUDY
-            WORKSPACE
-          </span>
           <span>
             色は画面上のイメージです。製造色は現物で確認してください。
           </span>

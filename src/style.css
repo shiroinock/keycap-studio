@@ -130,19 +130,6 @@ h2 {
 .brand-mark span {
   color: #797979;
 }
-.workspace-label {
-  font-size: 8px;
-  letter-spacing: 1.5px;
-  color: #9f9f9f;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 33px 7px 32px;
-}
-.workspace-label > span:last-child {
-  margin-left: auto;
-  color: #777777;
-}
 .live-dot {
   width: 6px;
   height: 6px;
@@ -155,7 +142,7 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 0 8px 14px;
+  margin: 30px 8px 14px;
 }
 .library-heading h2 {
   font-size: 11px;
@@ -267,11 +254,6 @@ h2 {
   margin-top: auto;
   padding: 55px 8px 0;
 }
-.sidebar-footer .eyebrow {
-  font-size: 7px;
-  color: #9c9c9c;
-  letter-spacing: 1.1px;
-}
 .sidebar-footer p {
   font-size: 10px;
   line-height: 1.9;
@@ -306,18 +288,10 @@ main {
   height: 70px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   border-bottom: 1px solid #e6e6e6;
   font-size: 10px;
   color: #8c8c8c;
-}
-.breadcrumb {
-  display: flex;
-  gap: 14px;
-}
-.breadcrumb strong {
-  font-weight: 500;
-  color: #626262;
 }
 .save-status {
   display: flex;
@@ -333,24 +307,14 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 35px 0 28px;
+  padding: 20px 0;
   gap: 20px;
 }
-.eyebrow {
-  font-size: 9px;
-  letter-spacing: 2px;
-  font-weight: 600;
-  color: #8e8e8e;
-}
 h1 {
-  font-size: clamp(20px, 2.1vw, 29px);
+  font-size: 21px;
   letter-spacing: -0.8px;
   font-weight: 500;
   margin: 8px 0;
-}
-.page-heading p {
-  color: #939393;
-  font-size: 11px;
 }
 .quiet-button {
   font-size: 11px;
@@ -413,12 +377,7 @@ h1 {
   align-items: center;
   padding: 22px 25px 0;
 }
-.preview-heading .eyebrow {
-  font-size: 8px;
-  letter-spacing: 1.7px;
-  color: #8c8c8c;
-}
-.preview-heading h2 {
+.preview-heading .preview-heading h2 {
   margin-top: 3px;
   font-size: 18px;
   font-weight: 500;
@@ -924,10 +883,8 @@ input[type="color"]::-webkit-color-swatch {
   .brand {
     font-size: 18px;
   }
-  .workspace-label,
   .library-heading,
   .library-filter,
-  .sidebar-footer .eyebrow,
   .sidebar-footer p,
   .search {
     display: none;
@@ -973,9 +930,6 @@ input[type="color"]::-webkit-color-swatch {
   }
   .page-heading h1 {
     font-size: 20px;
-  }
-  .page-heading p {
-    font-size: 9px;
   }
   .page-heading .quiet-button {
     font-size: 9px;
