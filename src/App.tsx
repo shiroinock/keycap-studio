@@ -209,6 +209,7 @@ export default function App() {
       next.keywords = "";
       next.overrides = {};
       next.kit = undefined;
+      next.kitTargets = undefined;
       next.variantSelections = undefined;
       next.designKeys = next.schemaVersion === 3 ? {} : undefined;
       next.layouts = next.schemaVersion === 3 ? [getLayout(next)] : undefined;
@@ -559,7 +560,9 @@ export default function App() {
           <KitEditor
             key={active.id}
             study={active}
-            onChange={(kit) => update((s) => ({ ...s, kit }))}
+            onChange={(kit, kitTargets) =>
+              update((s) => ({ ...s, kit, kitTargets }))
+            }
             onExport={setArtifact}
           />
         ) : view === "edit" ? (

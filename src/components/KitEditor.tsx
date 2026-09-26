@@ -25,7 +25,7 @@ export default function KitEditor({
   onExport,
 }: {
   study: Study;
-  onChange: (kit: KitKey[]) => void;
+  onChange: (kit: KitKey[], targets?: string[]) => void;
   onExport: (a: ExportArtifact) => void;
 }) {
   const kit = getKit(study),
@@ -40,7 +40,9 @@ export default function KitEditor({
   } as typeof DEFAULT_SCENE);
   const [selected, setSelected] = useState<string | null>(null),
     [error, setError] = useState(""),
-    [undo, setUndo] = useState<KitKey[] | null>(null);
+    [undo, setUndo] = useState<{ kit: KitKey[]; targets?: string[] } | null>(
+      null,
+    );
   const [adding, setAdding] = useState(false);
   const [view, setView] = useState<"sheet" | "coverage">("sheet");
   const sheet = useMemo(() => kitSheet(study, filter), [study, filter]);
@@ -70,9 +72,9 @@ export default function KitEditor({
   const draftRow =
     rowOptions.find(([name]) => name === rowName(draft.row, profile))?.[1] ??
     rowOptions[0][1];
-  function commit(next: KitKey[]) {
-    setUndo(structuredClone(kit));
-    onChange(next);
+  function commit(next: KitKey[], targets = study.kitTargets) {
+    setUndo({ kit: structuredClone(kit), targets: study.kitTargets });
+    onChange(next, targets);
     setError("");
   }
   function patch(p: Partial<KitKey>) {
@@ -143,7 +145,7 @@ export default function KitEditor({
           disabled={!undo}
           onClick={() => {
             if (undo) {
-              onChange(undo);
+              onChange(undo.kit, undo.targets);
               setUndo(null);
             }
           }}
@@ -177,7 +179,19 @@ export default function KitEditor({
         </button>
       </div>
       {error && <p role="alert">{error}</p>}
-      {view === "coverage" && <LayoutCoverage study={study} onAdd={add} />}
+      {view === "coverage" && (
+        <LayoutCoverage
+          study={study}
+          onAdd={add}
+          onApply={(keys, targets) => {
+            try {
+              commit(addKitKeys(study, keys), targets);
+            } catch (e) {
+              setError((e as Error).message);
+            }
+          }}
+        />
+      )}
       <div hidden={view !== "sheet"}>
         <p className="kit-status">
           {missing.length ? (

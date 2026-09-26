@@ -125,3 +125,51 @@ export function missingKitKeys(study: Study, layouts: Layout[]): KitKey[] {
     }
   return [...missing.values()];
 }
+
+export function planKit(study: Study, layouts: Layout[]) {
+  const requirements = new Map<
+    string,
+    {
+      key: KitKey;
+      needed: number;
+      included: number;
+      layouts: string[];
+      layoutIds: string[];
+    }
+  >();
+  for (const layout of layouts)
+    for (const item of kitCoverage(study, layout)) {
+      const previous = requirements.get(item.signature);
+      if (previous) {
+        previous.needed = Math.max(previous.needed, item.needed);
+        if (!previous.layoutIds.includes(layout.id)) {
+          previous.layoutIds.push(layout.id);
+          previous.layouts.push(layout.name);
+        }
+      } else
+        requirements.set(item.signature, {
+          ...item,
+          layouts: [layout.name],
+          layoutIds: [layout.id],
+        });
+    }
+  const rows = [...requirements.values()];
+  const needed = rows.reduce((n, r) => n + r.needed, 0);
+  const reused = rows.reduce((n, r) => n + Math.min(r.needed, r.included), 0);
+  return {
+    rows,
+    needed,
+    reused,
+    additions: missingKitKeys(study, layouts).map((key) => ({
+      ...key,
+      group:
+        key.group === "numpad"
+          ? ("numpad" as const)
+          : requirements.get(kitSignature(key, study))!.layoutIds.length ===
+              layouts.length
+            ? ("base" as const)
+            : ("extras" as const),
+    })),
+    retained: getKit(study).reduce((n, k) => n + k.quantity, 0) - reused,
+  };
+}

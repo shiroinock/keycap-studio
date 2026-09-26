@@ -7,6 +7,7 @@ import {
   layoutKit,
   kitSignature,
   missingKitKeys,
+  planKit,
 } from "./kit";
 import { switchLayout } from "./design-layout";
 import { layoutPresets } from "./presets";
@@ -348,4 +349,43 @@ it("checks alternative layouts without mutating the preview and merges shared de
   expect(updated.overrides).toEqual(study.overrides);
   const restored = parseLibrary(serialize([updated])).studies[0];
   expect(missingKitKeys(restored, targets)).toEqual([]);
+});
+
+it("plans shared quantities and preserves optional artwork and saved targets", () => {
+  const s = { ...structuredClone(samples[0]), kit: getKit(samples[0]) };
+  s.kit = addKitKeys(s, [
+    {
+      ...s.kit[0],
+      group: "novelty",
+      artwork: { color: "#ff00aa" },
+      quantity: 2,
+    },
+  ]);
+  const targets = [
+    preset("preset-fullsize_ansi-v1"),
+    preset("preset-fullsize_jis-v1"),
+  ];
+  const before = JSON.stringify(s);
+  const plan = planKit(s, targets);
+  expect(plan.needed).toBeLessThan(104 + 109);
+  expect(plan.needed).toBe(
+    plan.reused + plan.additions.reduce((n, k) => n + k.quantity, 0),
+  );
+  expect(plan.retained).toBeGreaterThanOrEqual(2);
+  expect(JSON.stringify(s)).toBe(before);
+  const applied = {
+    ...s,
+    kit: addKitKeys(s, plan.additions),
+    kitTargets: targets.map((l) => l.id),
+  };
+  expect(planKit(applied, targets).additions).toEqual([]);
+  expect(
+    applied.kit.find((k) => k.artwork?.color === "#ff00aa")!.quantity,
+  ).toBe(2);
+  const restored = parseLibrary(serialize([applied])).studies[0];
+  expect(restored.kitTargets).toEqual(applied.kitTargets);
+  const narrower = planKit(restored, [targets[0]]);
+  expect(narrower.additions).toEqual([]);
+  expect(narrower.retained).toBeGreaterThan(plan.retained);
+  expect(planKit(s, [])).toMatchObject({ needed: 0, reused: 0, additions: [] });
 });

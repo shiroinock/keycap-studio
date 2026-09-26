@@ -1485,3 +1485,21 @@ dialog.export-dialog {
   border: 1px solid #aaa;
   border-radius: 4px;
 }
+
+.kit-plan {
+  border: 1px solid #ccc;
+  padding: 16px;
+  margin: 16px 0;
+  border-radius: 6px;
+}
+.kit-plan h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+.kit-plan p {
+  font-size: 12px;
+}
+.kit-plan small {
+  display: block;
+  color: #666;
+}

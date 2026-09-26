@@ -47,6 +47,14 @@ export const studySchema = z
       return typeof value === "string" ? (legacy[value] ?? value) : value;
     }, z.enum(profileIds).optional()),
     kit: kitSchema.optional(),
+    kitTargets: z
+      .array(z.string().min(1).max(100))
+      .max(60)
+      .refine(
+        (ids) => new Set(ids).size === ids.length,
+        "対象配列が重複しています",
+      )
+      .optional(),
     variantSelections: z
       .record(
         z.string().min(1).max(100),
