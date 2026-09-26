@@ -35,6 +35,13 @@ import {
 import { textureSource } from "./artwork";
 import { createKeyGeometry, keyPosition } from "./profile";
 import { VIEW_ASPECT, type CameraPose, type SceneSettings } from "./settings";
+const INITIAL_CAMERA = {
+  position: [130, 240, 260] as [number, number, number],
+  zoom: 1,
+  fov: PHOTO_FOV,
+  near: 0.1,
+  far: 1500,
+};
 export type Capture3D = (width: number) => Promise<Blob>;
 interface Props {
   study: Study;
@@ -301,6 +308,7 @@ function Scene({
     };
   }, [gl, scene, settings.lighting, invalidate]);
   const controls = useRef<OrbitControls | null>(null);
+  const publishedPose = useRef<CameraPose | null>(null);
   const poseRef = useRef(onPose);
   poseRef.current = onPose;
   const readyKeys = useRef(new Set<string>());
@@ -326,18 +334,23 @@ function Scene({
     control.minZoom = 0.65;
     control.maxZoom = 2.5;
     control.target.set(0, 0, 0);
-    const changed = () => {
-      poseRef.current({
+    // OrbitControls owns the live camera. React only receives the final pose.
+    const changed = () => invalidate();
+    const ended = () => {
+      const pose: CameraPose = {
         position: [
           camera.position.x / frameScale,
           camera.position.y / frameScale,
           camera.position.z / frameScale,
         ],
         zoom: (camera as OrthographicCamera).zoom,
-      });
+      };
+      publishedPose.current = pose;
+      poseRef.current(pose);
       invalidate();
     };
     control.addEventListener("change", changed);
+    control.addEventListener("end", ended);
     const lost = (event: Event) => {
       event.preventDefault();
       onFail();
@@ -345,19 +358,32 @@ function Scene({
     gl.domElement.addEventListener("webglcontextlost", lost);
     return () => {
       control.removeEventListener("change", changed);
+      control.removeEventListener("end", ended);
       control.dispose();
       controls.current = null;
       gl.domElement.removeEventListener("webglcontextlost", lost);
     };
   }, [camera, gl, invalidate, onFail, frameScale]);
   useEffect(() => {
+    // The published pose is an acknowledgement, not a camera command.
+    const pose =
+      settings.pose === publishedPose.current
+        ? {
+            position: camera.position.toArray().map((v) => v / frameScale) as [
+              number,
+              number,
+              number,
+            ],
+            zoom: camera.zoom,
+          }
+        : settings.pose;
     configureCamera(
       camera as OrthographicCamera | PerspectiveCamera,
-      settings.pose,
+      pose,
       size.width / size.height,
       frameScale,
     );
-    // Do not call controls.update here: it emits change and would feed other views back into this one.
+    controls.current?.update();
     invalidate();
   }, [camera, size, settings.pose, invalidate, frameScale]);
   useEffect(() => {
@@ -583,13 +609,7 @@ export default function Keyboard3D({
               shadows="percentage"
               frameloop="demand"
               dpr={[1, 1.5]}
-              camera={{
-                position: [130, 240, 260],
-                zoom: 1,
-                fov: PHOTO_FOV,
-                near: 0.1,
-                far: 1500,
-              }}
+              camera={INITIAL_CAMERA}
               fallback={fallback}
               onCreated={({ gl }) => {
                 gl.toneMapping = ACESFilmicToneMapping;
