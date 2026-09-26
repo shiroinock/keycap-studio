@@ -55,3 +55,18 @@ it("preserves the shared pose when configuring comparison cameras at different p
   expect(a.projectionMatrix.elements).toEqual(b.projectionMatrix.elements);
   expect(a.matrixWorld.elements).toEqual(b.matrixWorld.elements);
 });
+
+it("resizes projections without changing a live zoom gesture", async () => {
+  const { updateCameraProjection } = await import("./camera");
+  for (const camera of [new PerspectiveCamera(), new OrthographicCamera()]) {
+    configureCamera(camera, ANGLED, 2.2);
+    camera.position.multiplyScalar(0.83);
+    camera.zoom = 1.47;
+    const position = camera.position.clone(),
+      quaternion = camera.quaternion.clone();
+    updateCameraProjection(camera, 1.6);
+    expect(camera.position).toEqual(position);
+    expect(camera.quaternion.toArray()).toEqual(quaternion.toArray());
+    expect(camera.zoom).toBe(1.47);
+  }
+});

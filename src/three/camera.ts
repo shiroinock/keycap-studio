@@ -7,6 +7,18 @@ export function configureCamera(
   aspect: number,
   frameScale = 1,
 ) {
+  camera.position.set(...pose.position).multiplyScalar(frameScale);
+  camera.zoom = pose.zoom;
+  camera.lookAt(0, 0, 0);
+  updateCameraProjection(camera, aspect, frameScale);
+  camera.updateMatrixWorld();
+}
+
+export function updateCameraProjection(
+  camera: OrthographicCamera | PerspectiveCamera,
+  aspect: number,
+  frameScale = 1,
+) {
   if (camera instanceof OrthographicCamera) {
     camera.left = -90 * frameScale * aspect;
     camera.right = 90 * frameScale * aspect;
@@ -18,11 +30,7 @@ export function configureCamera(
   }
   camera.near = 0.1;
   camera.far = 2000 * frameScale;
-  camera.position.set(...pose.position).multiplyScalar(frameScale);
-  camera.zoom = pose.zoom;
-  camera.lookAt(0, 0, 0);
   camera.updateProjectionMatrix();
-  camera.updateMatrixWorld();
 }
 
 export function layoutFrameScale(layout: { width: number; height: number }) {

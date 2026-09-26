@@ -1,3 +1,4 @@
+import { settledUpdate } from "./settled-update";
 import type { SheetLabel } from "../domain/kit-sheet";
 import { profiles, defaultProfile } from "../domain/profiles";
 import { layoutSignature, type Layout } from "../domain/layout";
@@ -22,7 +23,12 @@ import {
   ACESFilmicToneMapping,
 } from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { configureCamera, PHOTO_FOV, layoutFrameScale } from "./camera";
+import {
+  configureCamera,
+  updateCameraProjection,
+  PHOTO_FOV,
+  layoutFrameScale,
+} from "./camera";
 import ContactShadow from "./ContactShadow";
 import { studioEnvironment, createGrainTexture } from "./studio";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -308,6 +314,7 @@ function Scene({
     };
   }, [gl, scene, settings.lighting, invalidate]);
   const controls = useRef<OrbitControls | null>(null);
+  const cancelPoseUpdate = useRef<() => void>(() => {});
   const publishedPose = useRef<CameraPose | null>(null);
   const poseRef = useRef(onPose);
   poseRef.current = onPose;
@@ -336,7 +343,7 @@ function Scene({
     control.target.set(0, 0, 0);
     // OrbitControls owns the live camera. React only receives the final pose.
     const changed = () => invalidate();
-    const ended = () => {
+    const settled = settledUpdate(() => {
       const pose: CameraPose = {
         position: [
           camera.position.x / frameScale,
@@ -347,10 +354,11 @@ function Scene({
       };
       publishedPose.current = pose;
       poseRef.current(pose);
-      invalidate();
-    };
+    });
+    cancelPoseUpdate.current = settled.cancel;
     control.addEventListener("change", changed);
-    control.addEventListener("end", ended);
+    control.addEventListener("start", settled.cancel);
+    control.addEventListener("end", settled.schedule);
     const lost = (event: Event) => {
       event.preventDefault();
       onFail();
@@ -358,34 +366,36 @@ function Scene({
     gl.domElement.addEventListener("webglcontextlost", lost);
     return () => {
       control.removeEventListener("change", changed);
-      control.removeEventListener("end", ended);
+      settled.cancel();
+      control.removeEventListener("start", settled.cancel);
+      control.removeEventListener("end", settled.schedule);
       control.dispose();
       controls.current = null;
       gl.domElement.removeEventListener("webglcontextlost", lost);
     };
   }, [camera, gl, invalidate, onFail, frameScale]);
   useEffect(() => {
-    // The published pose is an acknowledgement, not a camera command.
-    const pose =
-      settings.pose === publishedPose.current
-        ? {
-            position: camera.position.toArray().map((v) => v / frameScale) as [
-              number,
-              number,
-              number,
-            ],
-            zoom: camera.zoom,
-          }
-        : settings.pose;
+    // Never write our own gesture result back into the live camera.
+    if (settings.pose === publishedPose.current) return;
+    cancelPoseUpdate.current();
     configureCamera(
       camera as OrthographicCamera | PerspectiveCamera,
-      pose,
+      settings.pose,
       size.width / size.height,
       frameScale,
     );
     controls.current?.update();
     invalidate();
-  }, [camera, size, settings.pose, invalidate, frameScale]);
+  }, [camera, settings.pose, invalidate, frameScale]);
+  useEffect(() => {
+    // Resize only the projection; a resize must not restore an old gesture pose.
+    updateCameraProjection(
+      camera as OrthographicCamera | PerspectiveCamera,
+      size.width / size.height,
+      frameScale,
+    );
+    invalidate();
+  }, [camera, size.width, size.height, frameScale, invalidate]);
   useEffect(() => {
     if (readyCount !== layout.keys.length) {
       onReady?.(null);
