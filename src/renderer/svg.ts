@@ -28,11 +28,13 @@ const noveltyPaths = {
   spark: "M12 2L15 9L22 12L15 15L12 22L9 15L2 12L9 9Z",
   wave: "M1 8Q6 2 12 8T23 8 M1 16Q6 10 12 16T23 16",
 };
-export function keyMarkup(k: ResolvedKey, study: Study): string {
-  const x = PAD + k.x * UNIT + 3,
-    y = PAD + k.y * UNIT + 3,
-    w = k.w * UNIT - 6,
-    h = k.h * UNIT - 6;
+/** Shared legend artwork for the 2D keys and 3D top textures. */
+export function legendMarkup(
+  k: ResolvedKey,
+  study: Study,
+  w: number,
+  h: number,
+): string {
   const center = study.legend.align === "center";
   const tx = center ? w / 2 : 11;
   const anchor = center ? "middle" : "start";
@@ -46,7 +48,14 @@ export function keyMarkup(k: ResolvedKey, study: Study): string {
     k.novelty === "none"
       ? `<text x="${tx}" y="${k.sub && study.legend.sublegends ? 32 : 30}" font-size="${fontSize}" text-anchor="${anchor}"${chars * fontSize > max ? ` textLength="${max}" lengthAdjust="spacingAndGlyphs"` : ""}>${esc(k.main)}</text>`
       : `<path d="${noveltyPaths[k.novelty]}" transform="translate(${w / 2 - 10} ${h / 2 - 10}) scale(.85)" fill="none" stroke="${k.ink}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-  return `<g data-key-id="${k.id}" transform="translate(${x} ${y})"><rect width="${w}" height="${h}" rx="6" fill="${k.color}"/><rect x="4" y="3" width="${w - 8}" height="${h - 9}" rx="4" fill="white" fill-opacity=".11"/><path d="M5 ${h - 6}H${w - 5}" stroke="black" stroke-opacity=".09" stroke-width="3" stroke-linecap="round"/><g fill="${k.ink}" font-family="${fontStack}" font-weight="500">${study.legend.sublegends && k.novelty === "none" ? `<text x="${tx}" y="16" font-size="${subSize}" text-anchor="${anchor}"${units(k.sub) * subSize > max ? ` textLength="${max}" lengthAdjust="spacingAndGlyphs"` : ""}>${esc(k.sub)}</text>` : ""}${main}</g></g>`;
+  return `<g fill="${k.ink}" font-family="${fontStack}" font-weight="500">${study.legend.sublegends && k.novelty === "none" ? `<text x="${tx}" y="16" font-size="${subSize}" text-anchor="${anchor}"${units(k.sub) * subSize > max ? ` textLength="${max}" lengthAdjust="spacingAndGlyphs"` : ""}>${esc(k.sub)}</text>` : ""}${main}</g>`;
+}
+export function keyMarkup(k: ResolvedKey, study: Study): string {
+  const x = PAD + k.x * UNIT + 3,
+    y = PAD + k.y * UNIT + 3,
+    w = k.w * UNIT - 6,
+    h = k.h * UNIT - 6;
+  return `<g data-key-id="${k.id}" transform="translate(${x} ${y})"><rect width="${w}" height="${h}" rx="6" fill="${k.color}"/><rect x="4" y="3" width="${w - 8}" height="${h - 9}" rx="4" fill="white" fill-opacity=".11"/><path d="M5 ${h - 6}H${w - 5}" stroke="black" stroke-opacity=".09" stroke-width="3" stroke-linecap="round"/>${legendMarkup(k, study, w, h)}</g>`;
 }
 export function renderSvg(study: Study): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${esc(study.name)}"><title>${esc(study.name)} — ANSI 60%</title><rect x="6" y="9" width="936" height="334" rx="15" fill="#000" opacity=".08"/><rect x="6" y="4" width="936" height="334" rx="15" fill="#D1D1CF"/><rect x="12" y="10" width="924" height="322" rx="11" fill="#BDBDBB"/>${resolveKeys(

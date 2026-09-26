@@ -1,5 +1,17 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import Keyboard from "./components/Keyboard";
+import SceneToolbar from "./components/SceneToolbar";
+import { DEFAULT_SCENE, type CameraPose } from "./three/settings";
+import type { Capture3D } from "./three/Keyboard3D";
+const Keyboard3D = lazy(() => import("./three/Keyboard3D"));
 import ImportDialog from "./components/ImportDialog";
 import HexInput from "./components/HexInput";
 import ExportDialog, { type ExportArtifact } from "./components/ExportDialog";
@@ -48,6 +60,18 @@ export default function App() {
   const [studies, setStudies] = useState<Study[]>(boot.studies);
   const [activeId, setActiveId] = useState(boot.studies[0].id);
   const [selected, setSelected] = useState("escape");
+  const [renderMode, setRenderMode] = useState<"2d" | "3d">("2d");
+  const [sceneSettings, setSceneSettings] = useState(DEFAULT_SCENE);
+  const export3D = useRef<Capture3D | null>(null);
+  const [ready3D, setReady3D] = useState(false);
+  const register3D = useCallback((fn: Capture3D | null) => {
+    export3D.current = fn;
+    setReady3D(Boolean(fn));
+  }, []);
+  const updatePose = useCallback(
+    (pose: CameraPose) => setSceneSettings((s) => ({ ...s, pose })),
+    [],
+  );
   const [view, setView] = useState<"edit" | "compare">("edit");
   const [compareIds, setCompareIds] = useState(
     boot.studies.slice(0, 3).map((s) => s.id),
@@ -136,8 +160,16 @@ export default function App() {
           ? new Blob([renderSvg(active)], {
               type: "image/svg+xml;charset=utf-8",
             })
-          : await pngBlob(active, pngWidth);
-      setArtifact({ blob, name: `${safeName(active.name)}.${kind}`, kind });
+          : renderMode === "3d"
+            ? await (export3D.current
+                ? export3D.current(pngWidth)
+                : Promise.reject(new Error("3Dの準備中です")))
+            : await pngBlob(active, pngWidth);
+      setArtifact({
+        blob,
+        name: `${safeName(active.name)}${renderMode === "3d" && kind === "png" ? "-3d" : ""}.${kind}`,
+        kind,
+      });
     } catch {
       setNotice("画像の書き出しに失敗しました。もう一度お試しください。");
     } finally {
@@ -349,6 +381,12 @@ export default function App() {
             ANSI 60% <span>·</span> 61 KEYS
           </span>
         </div>
+        <SceneToolbar
+          mode={renderMode}
+          onMode={setRenderMode}
+          settings={sceneSettings}
+          onSettings={setSceneSettings}
+        />
         {view === "edit" ? (
           <>
             <section className="preview-panel">
@@ -369,11 +407,29 @@ export default function App() {
                 </button>
               </div>
               <div className="keyboard-stage">
-                <Keyboard
-                  study={active}
-                  selected={selected}
-                  onSelect={setSelected}
-                />
+                {renderMode === "2d" ? (
+                  <Keyboard
+                    study={active}
+                    selected={selected}
+                    onSelect={setSelected}
+                  />
+                ) : (
+                  <Suspense
+                    fallback={
+                      <div className="three-loading">
+                        3Dエンジンを読み込み中…
+                      </div>
+                    }
+                  >
+                    <Keyboard3D
+                      study={active}
+                      settings={sceneSettings}
+                      onPose={updatePose}
+                      onSelect={setSelected}
+                      onReady={register3D}
+                    />
+                  </Suspense>
+                )}
               </div>
               <div className="preview-footer">
                 <span>
@@ -381,7 +437,9 @@ export default function App() {
                   キーを選んで、個別にカスタマイズ
                 </span>
                 <span>
-                  TOP VIEW <span className="muted">/</span> SVG
+                  {renderMode === "2d"
+                    ? "TOP VIEW / SVG"
+                    : "3D / STUDIO SCULPTED"}
                 </span>
               </div>
             </section>
@@ -652,7 +710,11 @@ export default function App() {
             <section className="export-bar">
               <div>
                 <strong>アイデアを持ち出そう。</strong>
-                <p>透明背景で出力。PNGはこの端末のフォントで描画します。</p>
+                <p>
+                  {renderMode === "2d"
+                    ? "透明背景で出力。PNGはこの端末のフォントで描画します。"
+                    : "3Dは現在の視点・照明でPNG出力。SVGは2Dの出力です。"}
+                </p>
               </div>
               <div className="export-actions">
                 <label className="sr-only" htmlFor="png-width">
@@ -672,10 +734,12 @@ export default function App() {
                 </button>
                 <button
                   className="primary"
-                  disabled={exporting}
+                  disabled={exporting || (renderMode === "3d" && !ready3D)}
                   onClick={() => exportImage("png")}
                 >
-                  ↓ PNGを書き出す
+                  {renderMode === "3d"
+                    ? "↓ 3D PNGを書き出す"
+                    : "↓ PNGを書き出す"}
                 </button>
               </div>
             </section>
@@ -733,7 +797,31 @@ export default function App() {
                         編集 ↗
                       </button>
                     </div>
-                    <Keyboard study={s} />
+                    {renderMode === "2d" ? (
+                      <Keyboard study={s} />
+                    ) : (
+                      <Suspense
+                        fallback={
+                          <div className="three-loading">
+                            3Dエンジンを読み込み中…
+                          </div>
+                        }
+                      >
+                        <Keyboard3D
+                          study={s}
+                          settings={sceneSettings}
+                          onPose={updatePose}
+                          exportWidth={pngWidth}
+                          onExport={(blob, name) =>
+                            setArtifact({
+                              blob,
+                              name: `${safeName(name)}-3d.png`,
+                              kind: "png",
+                            })
+                          }
+                        />
+                      </Suspense>
+                    )}
                     <div className="comparison-meta">
                       <span>{s.keywords}</span>
                       <span className="mini-swatches">
@@ -752,7 +840,8 @@ export default function App() {
         )}
         <footer className="main-footer">
           <span>
-            KEYCAP STUDIO <span className="muted">/</span> 2D STUDY WORKSPACE
+            KEYCAP STUDIO <span className="muted">/</span> DESIGN STUDY
+            WORKSPACE
           </span>
           <span>
             色は画面上のイメージです。製造色は現物で確認してください。
