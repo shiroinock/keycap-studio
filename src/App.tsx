@@ -9,15 +9,18 @@ import {
 } from "react";
 import Keyboard from "./components/Keyboard";
 import SceneToolbar from "./components/SceneToolbar";
-import { DEFAULT_SCENE, type CameraPose } from "./three/settings";
+import { DEFAULT_SCENE, ANGLED, type CameraPose } from "./three/settings";
 import type { Capture3D } from "./three/Keyboard3D";
 const Keyboard3D = lazy(() => import("./three/Keyboard3D"));
+import KLEImportDialog from "./components/KLEImportDialog";
 import ImportDialog from "./components/ImportDialog";
 import HexInput from "./components/HexInput";
 import ExportDialog, { type ExportArtifact } from "./components/ExportDialog";
-import { ansi60, type KeyRole } from "./domain/layout";
+import { layoutSignature, type Layout, type KeyRole } from "./domain/layout";
 import {
   samples,
+  getLayout,
+  sameLayout,
   roles,
   roleLabels,
   resolveKeys,
@@ -32,6 +35,7 @@ import {
   saveLibrary,
   serialize,
   STORAGE_KEY,
+  LEGACY_STORAGE_KEY,
 } from "./storage/library";
 import { download, pngBlob, renderSvg, safeName } from "./renderer/svg";
 function initial() {
@@ -59,7 +63,7 @@ export default function App() {
   const [boot] = useState(initial);
   const [studies, setStudies] = useState<Study[]>(boot.studies);
   const [activeId, setActiveId] = useState(boot.studies[0].id);
-  const [selected, setSelected] = useState("escape");
+  const [selection, setSelected] = useState("escape");
   const [renderMode, setRenderMode] = useState<"2d" | "3d">("2d");
   const [sceneSettings, setSceneSettings] = useState(DEFAULT_SCENE);
   const export3D = useRef<Capture3D | null>(null);
@@ -84,11 +88,38 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [pngWidth, setPngWidth] = useState(2844);
   const [exporting, setExporting] = useState(false);
+  const [kleOpen, setKleOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<Study[] | null>(null);
   const [artifact, setArtifact] = useState<ExportArtifact | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
   const active = studies.find((s) => s.id === activeId) ?? studies[0];
+  const layout = getLayout(active),
+    layoutKey = layoutSignature(layout);
+  const selected = layout.keys.some((k) => k.id === selection)
+    ? selection
+    : layout.keys[0].id;
   const resolved = resolveKeys(active).find((k) => k.id === selected)!;
+  const comparisonIds = compareIds.filter((id) =>
+    studies.some((s) => s.id === id && sameLayout(s, active)),
+  );
+  useEffect(() => {
+    setCompareIds((ids) => {
+      const matching = ids.filter((id) =>
+        studies.some((s) => s.id === id && sameLayout(s, active)),
+      );
+      return matching.length
+        ? matching
+        : studies
+            .filter((s) => sameLayout(s, active))
+            .slice(0, 3)
+            .map((s) => s.id);
+    });
+    setSceneSettings((s) => ({
+      ...s,
+      pose: ANGLED,
+      projection: "perspective",
+    }));
+  }, [layoutKey]);
   const override = active.overrides[selected] ?? {};
   useEffect(() => {
     if (blocked) return;
@@ -140,7 +171,7 @@ export default function App() {
       setNotice("案は200件まで保存できます");
       return;
     }
-    const next = duplicateStudy(copy ? active : samples[0]);
+    const next = duplicateStudy(active);
     if (!copy) {
       next.name = "Untitled Study";
       next.concept = "";
@@ -151,6 +182,28 @@ export default function App() {
     setActiveId(next.id);
     setView("edit");
     setNotice(copy ? "案を複製しました" : "新しい案を作成しました");
+  }
+  function importLayout(layout: Layout) {
+    if (studies.length >= 200) {
+      setNotice("案は200件まで保存できます");
+      return;
+    }
+    const next: Study = {
+      ...duplicateStudy(active),
+      schemaVersion: 2,
+      layoutId: layout.id,
+      layout: structuredClone(layout),
+      name: layout.name,
+      concept: "",
+      keywords: "",
+      overrides: {},
+    };
+    setStudies((all) => [...all, next]);
+    setActiveId(next.id);
+    setSelected(layout.keys[0].id);
+    setView("edit");
+    setKleOpen(false);
+    setNotice(`${layout.keys.length}キーの配列で案を作成しました`);
   }
   async function exportImage(kind: "svg" | "png") {
     setExporting(true);
@@ -227,6 +280,9 @@ export default function App() {
         <button className="new-study" onClick={() => add(false)}>
           ＋ 新しいスタディ
         </button>
+        <button className="import-layout" onClick={() => setKleOpen(true)}>
+          ＋ KLE配列を読み込む
+        </button>
         <input
           className="search"
           aria-label="案を検索"
@@ -260,7 +316,9 @@ export default function App() {
               </span>
               <span className="study-info">
                 <strong>{s.name}</strong>
-                <span>ANSI 60% {s.favorite ? "· ★" : ""}</span>
+                <span>
+                  {getLayout(s).name} {s.favorite ? "· ★" : ""}
+                </span>
               </span>
               <span className="mini-swatches">
                 {roles.map((r) => (
@@ -321,9 +379,16 @@ export default function App() {
                   onClick={() => {
                     try {
                       download(
-                        new Blob([localStorage.getItem(STORAGE_KEY) ?? ""], {
-                          type: "text/plain",
-                        }),
+                        new Blob(
+                          [
+                            localStorage.getItem(STORAGE_KEY) ??
+                              localStorage.getItem(LEGACY_STORAGE_KEY) ??
+                              "",
+                          ],
+                          {
+                            type: "text/plain",
+                          },
+                        ),
                         "keycap-studio-recovery.txt",
                       );
                     } catch {
@@ -363,11 +428,11 @@ export default function App() {
               className={view === "compare" ? "active" : ""}
               onClick={() => setView("compare")}
             >
-              並べて比較 <span>{compareIds.length}</span>
+              並べて比較 <span>{comparisonIds.length}</span>
             </button>
           </div>
           <span className="layout-tag">
-            ANSI 60% <span>·</span> 61 KEYS
+            {layout.name} <span>·</span> {layout.keys.length} KEYS
           </span>
         </div>
         <SceneToolbar
@@ -594,9 +659,9 @@ export default function App() {
                     value={selected}
                     onChange={(e) => setSelected(e.target.value)}
                   >
-                    {ansi60.keys.map((k) => (
+                    {layout.keys.map((k) => (
                       <option key={k.id} value={k.id}>
-                        {k.label || "Space"} · {k.id} · {k.w}u
+                        {k.label || "無刻印"} · {k.id} · {k.w}×{k.h}u
                       </option>
                     ))}
                   </select>
@@ -700,7 +765,7 @@ export default function App() {
                 <strong>画像を書き出す</strong>
                 <p>
                   {renderMode === "2d"
-                    ? "透明背景で出力。PNGはこの端末のフォントで描画します。"
+                    ? "透明背景で出力。縦長の配列はPNGサイズを自動調整します。"
                     : "3Dは現在の視点・照明でPNG出力。SVGは2Dの出力です。"}
                 </p>
               </div>
@@ -737,38 +802,44 @@ export default function App() {
             <div className="compare-heading">
               <div>
                 <h2>デザインの比較</h2>
-                <p>2〜4案を選択。すべて同じ倍率・同じ視点で表示します。</p>
+                <p>
+                  {layout.name}
+                  の案を2〜4件選択。同じ倍率・同じ視点で表示します。
+                </p>
               </div>
-              <span>{compareIds.length} / 4 SELECTED</span>
+              <span>{comparisonIds.length} / 4 SELECTED</span>
             </div>
             <div className="compare-select">
-              {studies.map((s) => (
-                <label key={s.id}>
-                  <input
-                    type="checkbox"
-                    checked={compareIds.includes(s.id)}
-                    disabled={
-                      !compareIds.includes(s.id) && compareIds.length >= 4
-                    }
-                    onChange={(e) =>
-                      setCompareIds((ids) =>
-                        e.target.checked
-                          ? [...ids, s.id]
-                          : ids.filter((id) => id !== s.id),
-                      )
-                    }
-                  />
-                  {s.name}
-                </label>
-              ))}
+              {studies
+                .filter((s) => sameLayout(s, active))
+                .map((s) => (
+                  <label key={s.id}>
+                    <input
+                      type="checkbox"
+                      checked={comparisonIds.includes(s.id)}
+                      disabled={
+                        !comparisonIds.includes(s.id) &&
+                        comparisonIds.length >= 4
+                      }
+                      onChange={(e) =>
+                        setCompareIds((ids) =>
+                          e.target.checked
+                            ? [...ids, s.id]
+                            : ids.filter((id) => id !== s.id),
+                        )
+                      }
+                    />
+                    {s.name}
+                  </label>
+                ))}
             </div>
-            {compareIds.length < 2 && (
+            {comparisonIds.length < 2 && (
               <p className="compare-hint">
                 比較する案を2つ以上選んでください。
               </p>
             )}
             <div className="comparison-grid">
-              {compareIds
+              {comparisonIds
                 .map((id) => studies.find((s) => s.id === id))
                 .filter((s): s is Study => Boolean(s))
                 .map((s) => (
@@ -832,6 +903,13 @@ export default function App() {
           </span>
         </footer>
       </main>
+      {kleOpen && (
+        <KLEImportDialog
+          template={active}
+          onCancel={() => setKleOpen(false)}
+          onImport={importLayout}
+        />
+      )}
       {notice && (
         <div className="toast" role="status">
           {notice}

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { ansi60 } from "../domain/layout";
-import { type Study } from "../domain/model";
-import { svgUrl, WIDTH, HEIGHT, UNIT, PAD } from "../renderer/svg";
+
+import { getLayout, type Study } from "../domain/model";
+import { svgUrl, svgDimensions, UNIT, PAD } from "../renderer/svg";
 export default function Keyboard({
   study,
   selected,
@@ -11,17 +11,19 @@ export default function Keyboard({
   selected?: string;
   onSelect?: (id: string) => void;
 }) {
+  const layout = getLayout(study),
+    { width: WIDTH, height: HEIGHT } = svgDimensions(study);
   const src = useMemo(() => svgUrl(study), [study]);
   return (
     <div className="keyboard" style={{ aspectRatio: `${WIDTH}/${HEIGHT}` }}>
       <img
         src={src}
-        alt={`${study.name}のANSI 60%・61キーのプレビュー`}
+        alt={`${study.name}の${layout.name}・${layout.keys.length}キーのプレビュー`}
         draggable={false}
       />
       {onSelect && (
         <div className="key-targets">
-          {ansi60.keys.map((k) => (
+          {layout.keys.map((k) => (
             <button
               key={k.id}
               className={`key-target ${selected === k.id ? "selected" : ""}`}

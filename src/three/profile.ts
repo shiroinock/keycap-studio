@@ -1,6 +1,6 @@
 import { BufferGeometry, Float32BufferAttribute } from "three";
 import type { ResolvedKey } from "../domain/model";
-import { ansi60 } from "../domain/layout";
+import { ansi60, type Layout } from "../domain/layout";
 export const PROFILE_ID = "studio-sculpted-v2";
 export const PROFILE_NAME = "Studio Sculpted v2（概形）";
 // Original visual study, millimetres. Not manufacturer-compatible CAD.
@@ -12,7 +12,7 @@ export const ROWS = [
   { height: 9.6, tilt: 0.16 },
 ];
 export function keyDimensions(
-  key: Pick<ResolvedKey, "w" | "h" | "row" | "id">,
+  key: Pick<ResolvedKey, "w" | "h" | "row" | "id" | "shape">,
 ) {
   const row = ROWS[key.row];
   if (!row) throw new Error("プロファイルの行が不正です");
@@ -30,22 +30,23 @@ export function keyDimensions(
     depth,
     topWidth: width - 5.2,
     topDepth: depth - 5.2,
-    height: key.id === "space" ? 8.5 : row.height,
-    tilt: key.id === "space" ? 0.08 : row.tilt,
-    dish: key.id === "space" ? -0.4 : 0.7,
+    height: key.shape === "space" || key.id === "space" ? 8.5 : row.height,
+    tilt: key.shape === "space" || key.id === "space" ? 0.08 : row.tilt,
+    dish: key.shape === "space" || key.id === "space" ? -0.4 : 0.7,
   };
 }
 export function keyPosition(
   key: Pick<ResolvedKey, "x" | "y" | "w" | "h">,
+  layout: Layout = ansi60,
 ): [number, number, number] {
   return [
-    (key.x + key.w / 2 - ansi60.width / 2) * ansi60.pitchMm,
+    (key.x + key.w / 2 - layout.width / 2) * layout.pitchMm,
     0,
-    (key.y + key.h / 2 - ansi60.height / 2) * ansi60.pitchMm,
+    (key.y + key.h / 2 - layout.height / 2) * layout.pitchMm,
   ];
 }
 export function createKeyGeometry(
-  key: Pick<ResolvedKey, "w" | "h" | "row" | "id">,
+  key: Pick<ResolvedKey, "w" | "h" | "row" | "id" | "shape">,
 ) {
   const d = keyDimensions(key);
   const surface = (z: number) =>

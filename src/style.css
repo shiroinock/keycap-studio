@@ -1184,3 +1184,32 @@ dialog.export-dialog {
     gap: 6px;
   }
 }
+
+.import-layout {
+  width: 100%;
+  margin-top: 8px;
+  font-size: 11px;
+}
+.kle-modal {
+  width: min(760px, calc(100vw - 40px));
+  max-width: 760px;
+  max-height: 90vh;
+  overflow: auto;
+}
+.kle-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 14px 0;
+}
+.kle-modal textarea {
+  min-height: 160px;
+  resize: vertical;
+  font: 12px/1.5 monospace;
+}
+.kle-preview {
+  margin-top: 16px;
+}
+.import-error {
+  color: #a53925 !important;
+}

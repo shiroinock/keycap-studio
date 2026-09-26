@@ -1,3 +1,4 @@
+import { layoutSignature, type Layout } from "../domain/layout";
 import {
   Component,
   memo,
@@ -19,11 +20,16 @@ import {
   ACESFilmicToneMapping,
 } from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { configureCamera, PHOTO_FOV } from "./camera";
+import { configureCamera, PHOTO_FOV, layoutFrameScale } from "./camera";
 import ContactShadow from "./ContactShadow";
 import { studioEnvironment, createGrainTexture } from "./studio";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { resolveKeys, type Study, type ResolvedKey } from "../domain/model";
+import {
+  resolveKeys,
+  getLayout,
+  type Study,
+  type ResolvedKey,
+} from "../domain/model";
 import { textureSource } from "./artwork";
 import { createKeyGeometry, keyPosition, PROFILE_NAME } from "./profile";
 import { VIEW_ASPECT, type CameraPose, type SceneSettings } from "./settings";
@@ -39,6 +45,7 @@ interface Props {
 }
 const Cap = memo(function Cap({
   data,
+  layout,
   study,
   roughness,
   reference,
@@ -49,6 +56,7 @@ const Cap = memo(function Cap({
   onSelect,
 }: {
   data: ResolvedKey;
+  layout: Layout;
   study: Study;
   roughness: number;
   reference: boolean;
@@ -61,7 +69,7 @@ const Cap = memo(function Cap({
   const { invalidate } = useThree();
   const geometry = useMemo(
     () => createKeyGeometry(data),
-    [data.w, data.h, data.row, data.id],
+    [data.w, data.h, data.row, data.id, data.shape],
   );
   const [texture, setTexture] = useState<CanvasTexture | null>(null);
   const source = textureSource(data, study);
@@ -109,7 +117,7 @@ const Cap = memo(function Cap({
   );
   return (
     <group
-      position={keyPosition(data)}
+      position={keyPosition(data, layout)}
       onClick={(e) => {
         if (e.delta < 5) {
           e.stopPropagation();
@@ -204,10 +212,14 @@ function Scene({
   onFail: () => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
+  const layout = getLayout(study),
+    frameScale = layoutFrameScale(layout);
+  const caseWidth = layout.width * layout.pitchMm + 8,
+    caseDepth = layout.height * layout.pitchMm + 8;
   const grain = useMemo(createGrainTexture, []);
   const caseGeometry = useMemo(
-    () => new RoundedBoxGeometry(294, 8, 104, 4, 2.3),
-    [],
+    () => new RoundedBoxGeometry(caseWidth, 8, caseDepth, 4, 2.3),
+    [caseWidth, caseDepth],
   );
   useEffect(
     () => () => {
@@ -251,14 +263,18 @@ function Scene({
     control.enableDamping = false;
     control.minPolarAngle = 0.001;
     control.maxPolarAngle = Math.PI * 0.46;
-    control.minDistance = 170;
-    control.maxDistance = 620;
+    control.minDistance = 170 * frameScale;
+    control.maxDistance = 620 * frameScale;
     control.minZoom = 0.65;
     control.maxZoom = 2.5;
     control.target.set(0, 0, 0);
     const changed = () => {
       poseRef.current({
-        position: [camera.position.x, camera.position.y, camera.position.z],
+        position: [
+          camera.position.x / frameScale,
+          camera.position.y / frameScale,
+          camera.position.z / frameScale,
+        ],
         zoom: (camera as OrthographicCamera).zoom,
       });
       invalidate();
@@ -275,18 +291,19 @@ function Scene({
       controls.current = null;
       gl.domElement.removeEventListener("webglcontextlost", lost);
     };
-  }, [camera, gl, invalidate, onFail]);
+  }, [camera, gl, invalidate, onFail, frameScale]);
   useEffect(() => {
     configureCamera(
       camera as OrthographicCamera | PerspectiveCamera,
       settings.pose,
       size.width / size.height,
+      frameScale,
     );
     // Do not call controls.update here: it emits change and would feed other views back into this one.
     invalidate();
-  }, [camera, size, settings.pose, invalidate]);
+  }, [camera, size, settings.pose, invalidate, frameScale]);
   useEffect(() => {
-    if (readyCount !== 61) {
+    if (readyCount !== layout.keys.length) {
       onReady?.(null);
       return;
     }
@@ -323,7 +340,7 @@ function Scene({
     };
     onReady?.(capture);
     return () => onReady?.(null);
-  }, [readyCount, onReady, gl, scene, camera, invalidate]);
+  }, [readyCount, onReady, gl, scene, camera, invalidate, layout.keys.length]);
   const lighting = settings.lighting;
   const reference = lighting === "reference";
   const neutral = lighting === "neutral";
@@ -332,7 +349,12 @@ function Scene({
       <color attach="background" args={["#e5e3df"]} />
       {!reference && (
         <>
-          {!neutral && <fog attach="fog" args={["#e5e3df", 650, 1800]} />}
+          {!neutral && (
+            <fog
+              attach="fog"
+              args={["#e5e3df", 650 * frameScale, 1800 * frameScale]}
+            />
+          )}
           {neutral ? (
             <ambientLight color="#ffffff" intensity={Math.PI * 0.55} />
           ) : (
@@ -343,19 +365,23 @@ function Scene({
             />
           )}
           <directionalLight
-            position={lighting === "raking" ? [-180, 75, 35] : [-110, 210, 140]}
+            position={
+              lighting === "raking"
+                ? [-180 * frameScale, 75 * frameScale, 35 * frameScale]
+                : [-110 * frameScale, 210 * frameScale, 140 * frameScale]
+            }
             intensity={
               neutral ? Math.PI * 0.45 : lighting === "soft" ? 1.1 : 1.6
             }
             color={neutral ? "#ffffff" : "#fff4e7"}
             castShadow
             shadow-mapSize={[2048, 2048]}
-            shadow-camera-left={-195}
-            shadow-camera-right={195}
-            shadow-camera-top={125}
-            shadow-camera-bottom={-125}
+            shadow-camera-left={-195 * frameScale}
+            shadow-camera-right={195 * frameScale}
+            shadow-camera-top={125 * frameScale}
+            shadow-camera-bottom={-125 * frameScale}
             shadow-camera-near={1}
-            shadow-camera-far={650}
+            shadow-camera-far={650 * frameScale}
             shadow-bias={-0.00012}
             shadow-normalBias={0.08}
             shadow-radius={lighting === "soft" ? 5 : 3}
@@ -385,7 +411,7 @@ function Scene({
         position={[0, -8.85, 0]}
         receiveShadow
       >
-        <planeGeometry args={[3000, 3000]} />
+        <planeGeometry args={[3000 * frameScale, 3000 * frameScale]} />
         {reference ? (
           <meshBasicMaterial color="#e5e3df" toneMapped={false} fog={false} />
         ) : neutral ? (
@@ -394,11 +420,12 @@ function Scene({
           <meshStandardMaterial color="#e5e3df" roughness={0.95} />
         )}
       </mesh>
-      {!reference && <ContactShadow />}
+      {!reference && <ContactShadow width={caseWidth} depth={caseDepth} />}
       {keys.map((key) => (
         <Cap
           key={key.id}
           data={key}
+          layout={layout}
           study={study}
           roughness={settings.material === "matte" ? 0.68 : 0.38}
           grain={grain}
@@ -436,6 +463,7 @@ export default function Keyboard3D({
   onExport,
   exportWidth = 2844,
 }: Props) {
+  const layout = getLayout(study);
   const [failed, setFailed] = useState(false);
   const [ready, setReady] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -469,7 +497,7 @@ export default function Keyboard3D({
         ) : (
           <Boundary fallback={fallback} onFail={fail}>
             <Canvas
-              key={settings.projection}
+              key={`${layoutSignature(layout)}:${settings.projection}`}
               orthographic={settings.projection === "orthographic"}
               shadows="percentage"
               frameloop="demand"
@@ -507,7 +535,7 @@ export default function Keyboard3D({
       </div>
       <div className="three-caption">
         <span>
-          {PROFILE_NAME} · {ready}/61 KEYS
+          {PROFILE_NAME} · {ready}/{layout.keys.length} KEYS
         </span>
         <span>
           {settings.projection === "perspective" ? "PHOTO" : "ORTHO"} ·{" "}
@@ -519,7 +547,7 @@ export default function Keyboard3D({
         </span>
         {onExport && (
           <button
-            disabled={ready !== 61 || busy || failed}
+            disabled={ready !== layout.keys.length || busy || failed}
             onClick={async () => {
               if (!capture.current) return;
               setBusy(true);

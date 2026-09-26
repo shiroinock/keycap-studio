@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { ansi60, type LayoutKey, type KeyRole } from "./layout";
+import {
+  ansi60,
+  layoutSchema,
+  layoutSignature,
+  type Layout,
+  type LayoutKey,
+  type KeyRole,
+} from "./layout";
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const text = z.string().max(80);
 export const noveltyIds = ["none", "sun", "moon", "spark", "wave"] as const;
@@ -16,37 +23,56 @@ const overrideSchema = z
 const pair = z.object({ color, ink: color }).strict();
 export const studySchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.union([z.literal(1), z.literal(2)]),
     id: z.string().min(1).max(100),
     name: z.string().min(1).max(80),
     concept: z.string().max(1200),
     keywords: z.string().max(240),
-    layoutId: z.literal("ansi60"),
+    layoutId: z.string().min(1).max(100),
+    layout: layoutSchema.optional(),
     palette: z.object({ base: pair, modifier: pair, accent: pair }).strict(),
     legend: z
       .object({ align: z.enum(["left", "center"]), sublegends: z.boolean() })
       .strict(),
-    overrides: z
-      .record(z.string(), overrideSchema)
-      .refine(
-        (o) =>
-          Object.keys(o).every((id) => ansi60.keys.some((k) => k.id === id)),
-        "存在しないキーが指定されています",
-      ),
+    overrides: z.record(z.string(), overrideSchema),
     favorite: z.boolean(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })
-  .strict();
+  .strict()
+  .superRefine((s, ctx) => {
+    if (s.schemaVersion === 1 && (s.layoutId !== "ansi60" || s.layout))
+      ctx.addIssue({ code: "custom", message: "v1はANSI 60%専用です" });
+    if (
+      s.schemaVersion === 2 &&
+      (!s.layout || s.layoutId !== s.layout.id || s.layout.id === "ansi60")
+    )
+      ctx.addIssue({ code: "custom", message: "配列データとIDが一致しません" });
+    const layout = s.layout ?? ansi60;
+    if (
+      !Object.keys(s.overrides).every((id) =>
+        layout.keys.some((k) => k.id === id),
+      )
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "存在しないキーが指定されています",
+      });
+  });
 export const librarySchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.union([z.literal(1), z.literal(2)]),
     studies: z.array(studySchema).min(1).max(200),
   })
   .strict()
   .refine(
     (v) => new Set(v.studies.map((s) => s.id)).size === v.studies.length,
     "案のIDが重複しています",
+  )
+  .refine(
+    (v) =>
+      v.schemaVersion === 2 || v.studies.every((s) => s.schemaVersion === 1),
+    "v1形式にカスタム配列は保存できません",
   );
 export type Study = z.infer<typeof studySchema>;
 export type KeyOverride = z.infer<typeof overrideSchema>;
@@ -65,8 +91,14 @@ export const roleLabels = {
   modifier: "モディファイア",
   accent: "アクセント",
 };
+export function getLayout(study: Study): Layout {
+  return study.layout ?? ansi60;
+}
+export function sameLayout(a: Study, b: Study): boolean {
+  return layoutSignature(getLayout(a)) === layoutSignature(getLayout(b));
+}
 export function resolveKeys(study: Study): ResolvedKey[] {
-  return ansi60.keys.map((k) => {
+  return getLayout(study).keys.map((k) => {
     const o = study.overrides[k.id] ?? {};
     const role = o.role ?? k.role;
     const pair = study.palette[role];

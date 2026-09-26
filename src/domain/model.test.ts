@@ -56,7 +56,7 @@ describe("portable study data", () => {
   it("rejects corrupted data, unknown versions, key references, duplicate IDs, colors, and empty libraries", () => {
     expect(() => parseLibrary("{bad")).toThrow();
     const invalid = [
-      { schemaVersion: 2, studies: samples },
+      { schemaVersion: 99, studies: samples },
       { schemaVersion: 1, studies: [] },
       { schemaVersion: 1, studies: [samples[0], samples[0]] },
       {
