@@ -74,7 +74,7 @@ export default function App() {
   );
   const [reviewTarget, setReviewTarget] = useState<"layout" | "kit">("layout");
   const [reviewKey, setReviewKey] = useState("");
-  const [stage, setStage] = useState<"setup" | "design" | "review">("design");
+  const [stage, setStage] = useState<"setup" | "design" | "review">("setup");
   const [inspectorHost, setInspectorHost] = useState<HTMLDivElement | null>(
     null,
   );
