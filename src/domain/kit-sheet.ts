@@ -124,13 +124,31 @@ function fullKitSheet(study: Study) {
     "変換",
     "かな",
   ]);
-  const jis = extras.filter(
-    (k) =>
-      k.shape !== "space" &&
-      (jisNames.has(k.label) ||
-        k.shape === "iso-enter" ||
-        (k.label === "Backspace" && k.w === 1)),
+  const hasJisModifiers = extras.some((k) =>
+    ["無変換", "変換", "かな"].includes(k.label),
   );
+  const isJisSpace = (k: KitKey) =>
+    hasJisModifiers && k.shape === "space" && k.w === 3.25 && k.row === 4;
+  const bottomOrder = (k: KitKey) =>
+    k.label === "無変換"
+      ? 0
+      : isJisSpace(k)
+        ? 1
+        : k.label === "変換"
+          ? 2
+          : k.label === "かな"
+            ? 3
+            : -1;
+  const jis = extras
+    .filter(
+      (k) =>
+        isJisSpace(k) ||
+        (k.shape !== "space" &&
+          (jisNames.has(k.label) ||
+            k.shape === "iso-enter" ||
+            (k.label === "Backspace" && k.w === 1))),
+    )
+    .sort((a, b) => a.row - b.row || bottomOrder(a) - bottomOrder(b));
   const jisKeys: LayoutKey[] = [];
   const jisX = baseRight + 0.5;
   for (const k of jis) {
@@ -190,7 +208,7 @@ function fullKitSheet(study: Study) {
     sideEnd,
     panel(numpad, "numpad", navX + 3.5 - 1.4, baseTop),
   );
-  const spaces = extras.filter((k) => k.shape === "space");
+  const spaces = extras.filter((k) => k.shape === "space" && !jis.includes(k));
   const bottom = extras.filter(
     (k) => k.shape !== "space" && k.row >= 3 && !jis.includes(k),
   );

@@ -266,9 +266,26 @@ it("composes a full-size kit around the base with JIS on its right", () => {
   expect(k("Home").x).toBeLessThan(k("Num").x);
   expect(k("↑").x).toBeLessThan(k("Num").x);
   expect(k("Shift", "extras").y).toBeGreaterThanOrEqual(bottom);
-  const spaces = keys.filter((k) => k.shape === "space");
-  expect(spaces[1].x).toBeCloseTo(spaces[0].x);
-  expect(spaces[1].y).toBeGreaterThan(spaces[0].y);
+  const jisSpace = keys.find((k) => k.shape === "space" && k.w === 3.25)!;
+  const bottomRow = [k("無変換"), jisSpace, k("変換"), k("かな")];
+  for (let i = 1; i < bottomRow.length; i++) {
+    expect(bottomRow[i].y).toBeCloseTo(bottomRow[0].y);
+    expect(bottomRow[i].x).toBeCloseTo(bottomRow[i - 1].x + bottomRow[i - 1].w);
+  }
+  const otherSpace = {
+    ...study.kit!.find((k) => k.shape === "space")!,
+    id: "six-u",
+    w: 6,
+    group: "extras" as const,
+    placement: undefined,
+  };
+  const variantSheet = kitSheet({ ...study, kit: [...study.kit!, otherSpace] });
+  const variant = variantSheet.study.layout!.keys.find(
+    (k) => k.id === "six-u",
+  )!;
+  const baseSpace = base.find((k) => k.shape === "space")!;
+  expect(variant.x).toBeCloseTo(baseSpace.x);
+  expect(variant.y).toBeGreaterThan(baseSpace.y);
   expect(new Set(keys.map((k) => k.id))).toEqual(
     new Set(study.kit!.map((k) => k.id)),
   );
