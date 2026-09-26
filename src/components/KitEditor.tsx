@@ -1,3 +1,5 @@
+import CustomArtwork from "./CustomArtwork";
+import type { ArtworkAsset } from "../domain/custom-art";
 import HexInput from "./HexInput";
 import LayoutCoverage from "./LayoutCoverage";
 import KitSheet2D from "./KitSheet2D";
@@ -31,8 +33,10 @@ export default function KitEditor({
   study,
   onChange,
   onExport,
+  onAssetsChange,
 }: {
   study: Study;
+  onAssetsChange: (assets: ArtworkAsset[]) => void;
   onChange: (kit: KitKey[], targets?: string[]) => void;
   onExport: (a: ExportArtifact) => void;
 }) {
@@ -791,6 +795,7 @@ export default function KitEditor({
                       artwork: {
                         ...entry.artwork,
                         novelty: e.target.value as typeof art.novelty,
+                        customArt: null,
                       },
                     })
                   }
@@ -802,6 +807,14 @@ export default function KitEditor({
                   ))}
                 </select>
               </label>
+              <CustomArtwork
+                assets={study.artworkAssets ?? []}
+                value={art.customArt}
+                onAssets={onAssetsChange}
+                onChange={(customArt) =>
+                  patch({ artwork: { ...entry.artwork, customArt } })
+                }
+              />
               <label>
                 収録グループ
                 <select

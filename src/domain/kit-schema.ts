@@ -1,3 +1,4 @@
+import { customArtSchema } from "./custom-art";
 import { z } from "zod";
 export const kitKeySchema = z
   .object({
@@ -17,6 +18,7 @@ export const kitKeySchema = z
       .optional(),
     artwork: z
       .object({
+        customArt: customArtSchema.nullable().optional(),
         main: z.string().max(80).optional(),
         sub: z.string().max(80).optional(),
         color: z

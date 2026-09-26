@@ -87,6 +87,10 @@ export function kitArtwork(study: Study, key: KitKey) {
     : study.designKeys?.[key.identity];
   const pair = study.palette[override?.role ?? key.role];
   return {
+    customArt:
+      key.artwork?.customArt !== undefined
+        ? key.artwork.customArt
+        : override?.customArt,
     main: key.artwork?.main ?? override?.main ?? key.label,
     sub: key.artwork?.sub ?? override?.sub ?? key.sub,
     color: key.artwork?.color ?? override?.color ?? pair.color,

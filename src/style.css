@@ -1577,3 +1577,62 @@ dialog.export-dialog {
   border: 3px solid #4369b2;
   box-shadow: inset 0 0 0 1px white;
 }
+
+.custom-artwork {
+  min-width: 0;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  width: 100%;
+}
+.custom-artwork legend {
+  font-size: 13px;
+  font-weight: 600;
+}
+.custom-artwork label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+.custom-artwork input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+}
+.custom-artwork input[type="file"] {
+  max-width: 100%;
+  font-size: 12px;
+}
+.custom-artwork small,
+.custom-artwork p {
+  font-size: 11px;
+  color: #666;
+}
+.art-library {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.art-library button {
+  min-width: 0;
+  padding: 6px;
+}
+.art-library button[aria-pressed="true"] {
+  border: 2px solid #4369b2;
+}
+.art-library img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  background: #ddd;
+}
+.art-library span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+}

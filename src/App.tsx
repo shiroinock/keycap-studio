@@ -1,3 +1,4 @@
+import CustomArtwork from "./components/CustomArtwork";
 import { restoreStudy, type DeletedStudy } from "./domain/library-actions";
 import KitVariantPicker from "./components/KitVariantPicker";
 import KitEditor from "./components/KitEditor";
@@ -633,6 +634,9 @@ export default function App() {
               <KitEditor
                 key={active.id}
                 study={active}
+                onAssetsChange={(artworkAssets) =>
+                  update((s) => ({ ...s, artworkAssets }))
+                }
                 onChange={(kit, kitTargets) =>
                   update((s) => ({ ...s, kit, kitTargets }))
                 }
@@ -912,6 +916,7 @@ export default function App() {
                           onChange={(e) =>
                             keyUpdate({
                               novelty: e.target.value as KeyOverride["novelty"],
+                              customArt: null,
                             })
                           }
                         >
@@ -969,6 +974,14 @@ export default function App() {
                         このキーをリセット
                       </button>
                     </div>
+                    <CustomArtwork
+                      assets={active.artworkAssets ?? []}
+                      value={resolved.customArt}
+                      onAssets={(artworkAssets) =>
+                        update((s) => ({ ...s, artworkAssets }))
+                      }
+                      onChange={(customArt) => keyUpdate({ customArt })}
+                    />
                     {resolved.novelty !== "none" && (
                       <p className="field-note">
                         Noveltyは文字の代わりに表示します。

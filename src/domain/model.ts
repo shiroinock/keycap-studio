@@ -1,3 +1,8 @@
+import {
+  customArtSchema,
+  artworkAssetsSchema,
+  type CustomArt,
+} from "./custom-art";
 import { designKeyIds } from "./key-identity";
 import { kitSchema } from "./kit-schema";
 import {
@@ -26,6 +31,7 @@ const overrideSchema = z
     color: color.optional(),
     ink: color.optional(),
     novelty: z.enum(noveltyIds).optional(),
+    customArt: customArtSchema.nullable().optional(),
   })
   .strict();
 const pair = z.object({ color, ink: color }).strict();
@@ -46,6 +52,7 @@ export const studySchema = z
       };
       return typeof value === "string" ? (legacy[value] ?? value) : value;
     }, z.enum(profileIds).optional()),
+    artworkAssets: artworkAssetsSchema.optional(),
     kit: kitSchema.optional(),
     kitTargets: z
       .array(z.string().min(1).max(100))
@@ -85,6 +92,14 @@ export const studySchema = z
       ctx.addIssue({ code: "custom", message: "配列データとIDが一致しません" });
     if (s.schemaVersion !== 3 && (s.designKeys || s.layouts))
       ctx.addIssue({ code: "custom", message: "セットの共有キーはv3専用です" });
+    const assets = new Set(s.artworkAssets?.map((a) => a.id) ?? []);
+    const artwork = [
+      ...Object.values(s.overrides),
+      ...Object.values(s.designKeys ?? {}),
+      ...(s.kit ?? []).map((k) => k.artwork),
+    ];
+    if (artwork.some((a) => a?.customArt && !assets.has(a.customArt.assetId)))
+      ctx.addIssue({ code: "custom", message: "絵柄の参照先が見つかりません" });
     const layout = s.layout ?? ansi60;
     if (
       !Object.keys(s.overrides).every((id) =>
@@ -119,6 +134,7 @@ export type ResolvedKey = LayoutKey & {
   color: string;
   ink: string;
   novelty: (typeof noveltyIds)[number];
+  customArt?: CustomArt | null;
   profileRow: number;
 };
 export const roles: KeyRole[] = ["base", "modifier", "accent"];
@@ -183,6 +199,10 @@ export function resolveKeys(study: Study): ResolvedKey[] {
       color: owned?.artwork?.color ?? o.color ?? pair.color,
       ink: owned?.artwork?.ink ?? o.ink ?? pair.ink,
       novelty: owned?.artwork?.novelty ?? o.novelty ?? "none",
+      customArt:
+        owned?.artwork?.customArt !== undefined
+          ? owned.artwork.customArt
+          : o.customArt,
       profileRow: profileRowIndex(
         k,
         getLayout(study),

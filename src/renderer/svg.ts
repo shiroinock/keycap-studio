@@ -61,6 +61,22 @@ export function legendMarkup(
   w: number,
   h: number,
 ): string {
+  const placement = k.customArt;
+  const asset =
+    placement && study.artworkAssets?.find((a) => a.id === placement.assetId);
+  if (placement && asset) {
+    const size = Math.min(w, h) * placement.scale;
+    const cx = w * placement.x,
+      cy = h * placement.y;
+    const clipId = `art-${k.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+    const clip =
+      k.shape === "iso-enter"
+        ? `<polygon points="${enterOutline(UNIT, 3)
+            .map(([x, y]) => `${x - 3},${y - 3}`)
+            .join(" ")}"/>`
+        : `<rect width="${w}" height="${h}" rx="6"/>`;
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" overflow="hidden"><defs><clipPath id="${clipId}">${clip}</clipPath></defs><g clip-path="url(#${clipId})"><image href="${esc(asset.dataUrl)}" x="${cx - size / 2}" y="${cy - size / 2}" width="${size}" height="${size}" preserveAspectRatio="xMidYMid meet" transform="rotate(${placement.rotation} ${cx} ${cy})"/></g></svg>`;
+  }
   const center = study.legend.align === "center";
   const tx = center ? w / 2 : 11;
   const anchor = center ? "middle" : "start";
