@@ -1,4 +1,5 @@
 import type { Study } from "./model";
+import type { KitKey } from "./kit-schema";
 import type { LayoutKey } from "./layout";
 import { getKit, kitArtwork } from "./kit";
 import { defaultProfile, rowName } from "./profiles";
@@ -10,6 +11,39 @@ export const kitGroups = {
   numpad: "テンキー",
   novelty: "ノベルティ",
 };
+
+// Use the original function, not the editable legend, to retain cluster membership.
+const clusterSlots = [
+  ["Print", "Scroll", "Pause"],
+  ["Insert", "Home", "PgUp", "Delete", "End", "PgDn"],
+  ["", "↑", "", "←", "↓", "→"],
+];
+function clusterFunction(key: KitKey) {
+  if (key.w !== 1 || key.h !== 1 || key.shape !== "standard") return "";
+  try {
+    const [base] = JSON.parse(key.identity);
+    const [area, name] = JSON.parse(base);
+    if (area !== "main") return "";
+    const aliases: Record<string, string> = {
+      Del: "Delete",
+      Ins: "Insert",
+      "Page Up": "PgUp",
+      "Page Down": "PgDn",
+      PageUp: "PgUp",
+      PageDown: "PgDn",
+      Up: "↑",
+      Down: "↓",
+      Left: "←",
+      Right: "→",
+      PrintScreen: "Print",
+      ScrollLock: "Scroll",
+    };
+    return aliases[name] ?? name;
+  } catch {
+    return "";
+  }
+}
+
 export type SheetLabel = { x: number; y: number; text: string; width: number };
 export function kitSheet(study: Study, filter: string = "all") {
   const kit = getKit(study).filter(
@@ -57,19 +91,48 @@ export function kitSheet(study: Study, filter: string = "all") {
       }
       y += Math.max(...items.map((k) => k.placement!.y - minY + k.h)) + 1;
     } else {
+      const clusterKeys = items.filter(
+        (k) =>
+          clusterSlots.some((slots) => slots.includes(clusterFunction(k))) &&
+          clusterFunction(k) !== "",
+      );
+      const ordinary = items.filter((k) => !clusterKeys.includes(k));
+      const clusterX = ordinary.length ? width - 3.5 : 1.4;
+      let clusterY = y;
+      const occupied: LayoutKey[] = [];
+      for (const slots of clusterSlots) {
+        const buckets = slots.map((name) =>
+          clusterKeys.filter((k) => clusterFunction(k) === name),
+        );
+        const variants = Math.max(...buckets.map((bucket) => bucket.length));
+        for (let variant = 0; variant < variants; variant++) {
+          buckets.forEach((bucket, slot) => {
+            const k = bucket[variant];
+            if (!k) return;
+            const key = {
+              ...k,
+              x: clusterX + (slot % 3),
+              y: clusterY + Math.floor(slot / 3),
+              rotation: 0,
+            };
+            keys.push(key);
+            occupied.push(key);
+          });
+          clusterY += Math.ceil(slots.length / 3) + 0.5;
+        }
+      }
       const rowNames = [
         ...new Set(
-          items.map((k) =>
+          ordinary.map((k) =>
             k.shape === "space"
               ? "Space"
               : rowName(k.row, study.profile ?? defaultProfile),
           ),
         ),
       ].sort();
-      const occupied: LayoutKey[] = [];
       for (const row of rowNames) {
         labels.push({ x: 0, y: y + 0.25, text: row, width: 1.2 });
-        for (const k of items.filter(
+        for (const k of ordinary.filter(
           (k) =>
             (k.shape === "space"
               ? "Space"
@@ -92,7 +155,11 @@ export function kitSheet(study: Study, filter: string = "all") {
             }
             if (
               x + k.w <=
-              (group === "numpad" ? Math.max(5.4, 1.4 + k.w) : width - 0.5) +
+              (group === "numpad"
+                ? Math.max(5.4, 1.4 + k.w)
+                : clusterKeys.length
+                  ? clusterX - 0.6
+                  : width - 0.5) +
                 1e-6
             )
               break;

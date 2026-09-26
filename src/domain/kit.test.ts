@@ -167,3 +167,65 @@ it("uses full-size width and fills the next row beside spanning keys", () => {
   expect(third.x).toBeCloseTo(tall.x);
   expect(third.y - tall.y).toBeCloseTo(2);
 });
+
+it("keeps navigation and arrow clusters intact across rows and legend edits", () => {
+  const seed = getKit(samples[0])[0];
+  const names = [
+    "A",
+    "Insert",
+    "Home",
+    "PgUp",
+    "Delete",
+    "End",
+    "PgDn",
+    "↑",
+    "←",
+    "↓",
+    "→",
+    "Print",
+    "Scroll",
+    "Pause",
+  ];
+  const kit = names.map((label, i) => ({
+    ...seed,
+    id: String(i),
+    label,
+    identity: JSON.stringify([JSON.stringify(["main", label]), 0]),
+    row: i % 5,
+    group: "extras" as const,
+    placement: undefined,
+    artwork: { main: "custom" },
+  }));
+  const keys = kitSheet({ ...samples[0], kit }).study.layout!.keys;
+  const k = (name: string) => keys.find((key) => key.label === name)!;
+  expect(keys).toHaveLength(kit.length);
+  expect(k("Home").x - k("Insert").x).toBeCloseTo(1);
+  expect(k("PgUp").x - k("Insert").x).toBeCloseTo(2);
+  expect(k("Delete").y - k("Insert").y).toBeCloseTo(1);
+  expect(k("End").x).toBeCloseTo(k("Home").x);
+  expect(k("PgDn").x).toBeCloseTo(k("PgUp").x);
+  expect(k("↑").x).toBeCloseTo(k("↓").x);
+  expect(k("↓").y - k("↑").y).toBeCloseTo(1);
+  expect(k("→").x - k("←").x).toBeCloseTo(2);
+  expect(k("Scroll").y).toBeCloseTo(k("Print").y);
+  // Missing members remain gaps, and duplicate R variants remain present.
+  const partial = kit.filter((key) => !["Home", "↑"].includes(key.label));
+  const duplicate = {
+    ...partial.find((key) => key.label === "End")!,
+    id: "extra-end",
+    row: 4,
+  };
+  const partialKeys = kitSheet({ ...samples[0], kit: [...partial, duplicate] })
+    .study.layout!.keys;
+  expect(partialKeys).toHaveLength(partial.length + 1);
+  const ends = partialKeys.filter((key) => key.label === "End");
+  expect(ends[0].y).not.toBe(ends[1].y);
+  for (let i = 0; i < partialKeys.length; i++)
+    for (const b of partialKeys.slice(i + 1)) {
+      const a = partialKeys[i];
+      expect(
+        Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 1e-6 &&
+          Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 1e-6,
+      ).toBe(false);
+    }
+});
