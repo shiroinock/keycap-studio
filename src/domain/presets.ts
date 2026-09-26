@@ -39,6 +39,44 @@ const pad = [
   ["1", "2", "3", "Enter"],
   ["0", "."],
 ];
+const jisNumbers = ["半角/全角", ..."1234567890", "-", "^", "¥", "Backspace"];
+const jisQ = ["Tab", ..."QWERTYUIOP", "@", "[", "Enter"];
+const jisA = ["Caps", ..."ASDFGHJKL", ";", ":", "]"];
+const jisZ = ["Shift", ..."ZXCVBNM", ",", ".", "/", "ろ", "Shift"];
+const jisBottom = [
+  "Ctrl",
+  "Super",
+  "Alt",
+  "無変換",
+  "Space",
+  "変換",
+  "かな",
+  "Alt",
+  "Menu",
+  "Ctrl",
+];
+const isoQ = [...qRow.slice(0, -1), "Enter"];
+const isoA = [...aRow.slice(0, -1), "#"];
+const isoZ = ["Shift", "\\", ...zRow.slice(1)];
+function regionalRows(jis: boolean, full: boolean): string[][] {
+  const n = jis ? jisNumbers : numberRow,
+    q = jis ? jisQ : isoQ,
+    a = jis ? jisA : isoA,
+    z = jis ? jisZ : isoZ;
+  const b = jis
+    ? full
+      ? [...jisBottom.slice(0, 8), "Super", ...jisBottom.slice(8)]
+      : jisBottom
+    : bottom;
+  return [
+    ["Esc", ...fn, "Print", "Scroll", "Pause"],
+    [...n, "Insert", "Home", "PgUp", ...(full ? pad[0] : [])],
+    [...q, "Delete", "End", "PgDn", ...(full ? pad[1] : [])],
+    [...a, ...(full ? pad[2] : [])],
+    [...z, "↑", ...(full ? pad[3] : [])],
+    [...b, "←", "↓", "→", ...(full ? pad[4] : [])],
+  ];
+}
 // Labels are design defaults, not firmware mappings.
 const legends: Record<keyof typeof geometry, string[][]> = {
   "60_hhkb": [
@@ -101,6 +139,12 @@ const legends: Record<keyof typeof geometry, string[][]> = {
     [...bottom, "←", "↓", "→", ...pad[4]],
   ],
   numpad_5x4: pad,
+  "60_jis": [jisNumbers, jisQ, jisA, jisZ, jisBottom],
+  tkl_jis: regionalRows(true, false),
+  fullsize_jis: regionalRows(true, true),
+  "60_iso": [numberRow, isoQ, isoA, isoZ, bottom],
+  tkl_iso: regionalRows(false, false),
+  fullsize_iso: regionalRows(false, true),
 };
 function makeKey(
   label: string,
@@ -143,8 +187,8 @@ function makePreset(
     throw new Error(`Preset labels: ${source}`);
   const ys = [...new Set(coords.map((k) => k[1]))].sort((a, b) => a - b);
   const hasFunctionRow = ys.length === 6;
-  const keys = coords.map(([x, y, w, h], i) =>
-    makeKey(
+  const keys = coords.map(([x, y, w, h], i) => {
+    const key = makeKey(
       labels[i],
       x,
       y,
@@ -152,8 +196,19 @@ function makePreset(
       h,
       i,
       Math.max(0, Math.min(4, ys.indexOf(y) - (hasFunctionRow ? 1 : 0))),
-    ),
-  );
+    );
+    if (
+      (source.endsWith("_jis") || source.endsWith("_iso")) &&
+      x === 13.75 &&
+      w === 1.25 &&
+      h === 2
+    ) {
+      key.x -= 0.25;
+      key.w = 1.5;
+      key.shape = "iso-enter";
+    }
+    return key;
+  });
   const layout: Layout = {
     id: `preset-${source}-v1`,
     version: 1,
@@ -211,6 +266,30 @@ function grid(rows: number, columns: number): LayoutPreset {
   validateLayout(layout);
   return { layout, group: "格子配列", note: "全キー1u。刻印は編集できます。" };
 }
+function hhkb6(): LayoutPreset {
+  const preset = makePreset(
+    "60_hhkb",
+    "HHKB US 6u",
+    "コンパクト",
+    "60キー・6uスペース・HHKB英語配列。",
+  );
+  preset.layout.id = "preset-hhkb-6u-v1";
+  const bottomKeys = preset.layout.keys.filter((k) => k.y === 4);
+  const positions = [
+    [1.5, 1],
+    [2.5, 1.5],
+    [4, 6],
+    [10, 1.5],
+    [11.5, 1],
+  ];
+  bottomKeys.forEach((k, i) => {
+    k.x = positions[i][0];
+    k.w = positions[i][1];
+    k.label = ["Alt", "Super", "", "Super", "Alt"][i];
+  });
+  validateLayout(preset.layout);
+  return preset;
+}
 export const layoutPresets: LayoutPreset[] = [
   {
     layout: ansi60,
@@ -247,6 +326,7 @@ export const layoutPresets: LayoutPreset[] = [
     "スタンダード",
     "104キー・6.25uスペース・独立したテンキー。",
   ),
+  hhkb6(),
   makePreset(
     "60_hhkb",
     "HHKB型 7u",
@@ -258,6 +338,32 @@ export const layoutPresets: LayoutPreset[] = [
     "テンキー",
     "コンパクト",
     "17キー・2uの0キー・縦長の＋とEnter。",
+  ),
+  makePreset("60_jis", "JIS 60%", "JIS", "65キー・3.75uスペース・L字Enter。"),
+  makePreset("tkl_jis", "JIS TKL", "JIS", "91キー・3.75uスペース・L字Enter。"),
+  makePreset(
+    "fullsize_jis",
+    "JIS フルサイズ",
+    "JIS",
+    "109キー・3.25uスペース・L字Enter。",
+  ),
+  makePreset(
+    "60_iso",
+    "ISO UK 60%",
+    "ISO",
+    "62キー・6.25uスペース・L字Enter。",
+  ),
+  makePreset(
+    "tkl_iso",
+    "ISO UK TKL",
+    "ISO",
+    "88キー・6.25uスペース・L字Enter。",
+  ),
+  makePreset(
+    "fullsize_iso",
+    "ISO UK フルサイズ",
+    "ISO",
+    "105キー・6.25uスペース・L字Enter。",
   ),
   grid(4, 12),
   grid(5, 12),

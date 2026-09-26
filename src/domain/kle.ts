@@ -99,20 +99,33 @@ export function parseKLE(raw: string): Layout {
   } catch {
     throw new Error("KLEの行・属性の並びを確認してください");
   }
-  const minX = Math.min(...keyboard.keys.map((k) => k.x)),
+  const minX = Math.min(...keyboard.keys.map((k) => k.x + Math.min(0, k.x2))),
     minY = Math.min(...keyboard.keys.map((k) => k.y));
   const round = (n: number) => Math.round(n * 1e6) / 1e6;
   const keys: LayoutKey[] = keyboard.keys.map((k, i) => {
     if (k.rotation_angle !== 0)
       throw new Error(`${i + 1}番目：回転キーには未対応です`);
-    if (
+    const nonRect =
       k.x2 !== 0 ||
       k.y2 !== 0 ||
       k.width2 !== k.width ||
-      k.height2 !== k.height
-    )
+      k.height2 !== k.height;
+    const isoEnter =
+      (k.width === 1.25 &&
+        k.height === 2 &&
+        k.x2 === -0.25 &&
+        k.y2 === 0 &&
+        k.width2 === 1.5 &&
+        k.height2 === 1) ||
+      (k.width === 1.5 &&
+        k.height === 1 &&
+        k.x2 === 0.25 &&
+        k.y2 === 0 &&
+        k.width2 === 1.25 &&
+        k.height2 === 2);
+    if (nonRect && !isoEnter)
       throw new Error(
-        `${i + 1}番目：ISO Enterなどの非長方形キーには未対応です`,
+        `${i + 1}番目：この非長方形キーには未対応です（対応：JIS/ISO Enter）`,
       );
     if (k.decal || k.ghost || k.stepped || k.nub)
       throw new Error(`${i + 1}番目：装飾・段付きキーには未対応です`);
@@ -130,8 +143,9 @@ export function parseKLE(raw: string): Layout {
     // KLE positions are read top-to-bottom. With two legends the upper is sub, lower is main.
     const label = labels.at(-1) ?? "",
       sub = labels.length === 2 ? labels[0] : "";
-    const shape =
-      k.width >= 3 && (!label.trim() || /^space$/i.test(label))
+    const shape = isoEnter
+      ? "iso-enter"
+      : k.width >= 3 && (!label.trim() || /^space$/i.test(label))
         ? "space"
         : "standard";
     const role = /^(esc(ape)?|enter|return)$/i.test(label)
@@ -147,10 +161,10 @@ export function parseKLE(raw: string): Layout {
       id: `key-${String(i + 1).padStart(3, "0")}`,
       label,
       sub,
-      x: round(k.x - minX),
+      x: round(k.x + (isoEnter ? Math.min(0, k.x2) : 0) - minX),
       y: round(k.y - minY),
-      w: k.width,
-      h: k.height,
+      w: isoEnter ? 1.5 : k.width,
+      h: isoEnter ? 2 : k.height,
       rotation: 0,
       row: Math.min(4, Math.max(0, Math.floor(k.y - minY))),
       role,

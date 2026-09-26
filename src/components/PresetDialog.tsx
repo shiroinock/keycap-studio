@@ -72,7 +72,7 @@ export default function PresetDialog({
       <details>
         <summary>収録範囲</summary>
         <p>
-          代表的な配列の一例です。同じサイズ名でも機種によってキー幅・配置は異なります。JIS・ISOの特殊形状、Aliceなどの回転キーは未対応です。別の長方形配列はKLE
+          代表的な配列の一例です。同じサイズ名でも機種によってキー幅・配置は異なります。Aliceなどの回転キーは未対応です。別の配列はKLE
           JSONで読み込めます。
         </p>
       </details>

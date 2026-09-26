@@ -1,3 +1,4 @@
+import { createEnterGeometry } from "./enter-geometry";
 import { BufferGeometry, Float32BufferAttribute } from "three";
 import type { ResolvedKey } from "../domain/model";
 import { ansi60, type Layout } from "../domain/layout";
@@ -49,6 +50,11 @@ export function createKeyGeometry(
   key: Pick<ResolvedKey, "w" | "h" | "row" | "id" | "shape">,
 ) {
   const d = keyDimensions(key);
+  if (key.shape === "iso-enter")
+    return {
+      ...createEnterGeometry(ansi60.pitchMm, d.height, d.tilt),
+      dimensions: d,
+    };
   const surface = (z: number) =>
     d.height + d.tilt * z - d.dish * (1 - (z / (d.topDepth / 2)) ** 2);
   const normal = (z: number) => {

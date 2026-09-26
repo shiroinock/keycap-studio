@@ -1,3 +1,4 @@
+import { enterClipPath } from "../domain/key-shape";
 import { useMemo } from "react";
 
 import { getLayout, type Study } from "../domain/model";
@@ -31,6 +32,8 @@ export default function Keyboard({
               aria-pressed={selected === k.id}
               onClick={() => onSelect(k.id)}
               style={{
+                clipPath:
+                  k.shape === "iso-enter" ? enterClipPath(UNIT, 3) : undefined,
                 left: `${((PAD + k.x * UNIT + 3) / WIDTH) * 100}%`,
                 top: `${((PAD + k.y * UNIT + 3) / HEIGHT) * 100}%`,
                 width: `${((k.w * UNIT - 6) / WIDTH) * 100}%`,

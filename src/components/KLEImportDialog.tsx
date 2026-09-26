@@ -36,7 +36,8 @@ export default function KLEImportDialog({
     >
       <h2 id="kle-title">KLE配列を読み込む</h2>
       <p>
-        回転なしの長方形キーに対応。JSONファイルを選ぶか、JSONを貼り付けてください。
+        回転なしの長方形キーとJIS/ISO
+        Enterに対応。JSONファイルを選ぶか、JSONを貼り付けてください。
       </p>
       <button onClick={() => input.current?.click()}>
         KLE JSONファイルを選択

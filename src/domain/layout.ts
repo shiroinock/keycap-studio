@@ -1,3 +1,4 @@
+import { keyRects } from "./key-shape";
 import { z } from "zod";
 export type KeyRole = "base" | "modifier" | "accent";
 export interface LayoutKey {
@@ -11,7 +12,7 @@ export interface LayoutKey {
   rotation: number;
   row: number;
   role: KeyRole;
-  shape?: "standard" | "space";
+  shape?: "standard" | "space" | "iso-enter";
 }
 export interface Layout {
   id: string;
@@ -119,6 +120,8 @@ export function validateLayout(layout: Layout): void {
       k.y + k.h > layout.height + 1e-6
     )
       throw new Error("キーの座標・寸法が不正です（幅・高さは0.5〜10u）");
+    if (k.shape === "iso-enter" && (k.w !== 1.5 || k.h !== 2))
+      throw new Error("Enter形状は1.5×2uです");
     if (k.rotation !== 0) throw new Error("回転したキーには未対応です");
     if (!Number.isInteger(k.row) || k.row < 0 || k.row > 4)
       throw new Error("キーのプロファイル行が不正です");
@@ -128,8 +131,14 @@ export function validateLayout(layout: Layout): void {
       const a = layout.keys[i],
         b = layout.keys[j];
       if (
-        Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 1e-6 &&
-        Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 1e-6
+        keyRects(a).some((ra) =>
+          keyRects(b).some(
+            (rb) =>
+              Math.min(ra.x + ra.w, rb.x + rb.w) - Math.max(ra.x, rb.x) >
+                1e-6 &&
+              Math.min(ra.y + ra.h, rb.y + rb.h) - Math.max(ra.y, rb.y) > 1e-6,
+          ),
+        )
       )
         throw new Error(`キーが重なっています：${a.id} / ${b.id}`);
     }
@@ -146,7 +155,7 @@ const layoutKeySchema = z
     rotation: z.number().refine((v): boolean => v === 0),
     row: z.number().int().min(0).max(4),
     role: z.enum(["base", "modifier", "accent"]),
-    shape: z.enum(["standard", "space"]).optional(),
+    shape: z.enum(["standard", "space", "iso-enter"]).optional(),
   })
   .strict();
 export const layoutSchema = z
