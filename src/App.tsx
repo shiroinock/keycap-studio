@@ -940,11 +940,6 @@ export default function App() {
             </div>
           </>
         )}
-        <footer className="main-footer">
-          <span>
-            色は画面上のイメージです。製造色は現物で確認してください。
-          </span>
-        </footer>
       </main>
       {presetOpen && (
         <PresetDialog
