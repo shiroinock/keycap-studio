@@ -321,38 +321,6 @@ h1 {
   background: transparent;
   white-space: nowrap;
 }
-.workbench-tabs {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 23px;
-}
-.workbench-tabs > div {
-  display: flex;
-  gap: 27px;
-}
-.workbench-tabs button {
-  background: none;
-  border: 0;
-  border-radius: 0;
-  padding: 13px 0;
-  color: #939393;
-  font-size: 11px;
-  border-bottom: 2px solid transparent;
-}
-.workbench-tabs button.active {
-  color: #a9502d;
-  border-bottom-color: #a9502d;
-  font-weight: 600;
-}
-.workbench-tabs button span {
-  font-size: 8px;
-  padding: 2px 5px;
-  margin-left: 6px;
-  background: #e8e8e8;
-  border-radius: 3px;
-}
 .layout-tag {
   font-size: 9px;
   letter-spacing: 1px;
@@ -651,91 +619,6 @@ input[type="color"]::-webkit-color-swatch {
   color: #b6b6b6;
   padding: 0 5px;
 }
-.compare-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 22px 0;
-}
-.compare-heading h2 {
-  font-size: 19px;
-  font-weight: 500;
-}
-.compare-heading p {
-  font-size: 11px;
-  color: #939393;
-  margin-top: 6px;
-}
-.compare-heading > span {
-  font-size: 10px;
-  color: #8a8a8a;
-  letter-spacing: 1px;
-}
-.compare-select {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 22px;
-}
-.compare-select label {
-  flex-direction: row;
-  align-items: center;
-  gap: 9px;
-  padding: 7px 12px;
-  background: white;
-  border: 1px solid #e1e1e1;
-  border-radius: 5px;
-  cursor: pointer;
-}
-.compare-select input {
-  accent-color: #ad5b35;
-}
-.comparison-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 40px;
-}
-.comparison-card {
-  padding: 20px;
-  background: #f0f0f0;
-  border: 1px solid #e0e0e0;
-  border-radius: 9px;
-  min-width: 0;
-}
-.comparison-card-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 23px;
-  gap: 10px;
-}
-.comparison-card h3 {
-  font-weight: 500;
-  font-size: 16px;
-  overflow-wrap: anywhere;
-}
-.comparison-card-title button {
-  font-size: 10px;
-  white-space: nowrap;
-  background: transparent;
-}
-.comparison-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 23px;
-  font-size: 9px;
-  color: #888888;
-}
-.comparison-meta > span:first-child {
-  overflow-wrap: anywhere;
-}
-.compare-hint {
-  color: #848484;
-  font-size: 12px;
-  margin: 12px 0;
-}
 .toast {
   position: fixed;
   bottom: 25px;
@@ -864,12 +747,6 @@ input[type="color"]::-webkit-color-swatch {
   .keyboard-stage {
     padding: 25px 20px;
   }
-  .comparison-grid {
-    gap: 12px;
-  }
-  .comparison-card {
-    padding: 12px;
-  }
 }
 @media (max-width: 760px) {
   .app-shell {
@@ -938,9 +815,6 @@ input[type="color"]::-webkit-color-swatch {
   .layout-tag {
     font-size: 8px;
   }
-  .workbench-tabs > div {
-    gap: 17px;
-  }
   .preview-heading {
     padding: 16px 15px 0;
   }
@@ -971,21 +845,6 @@ input[type="color"]::-webkit-color-swatch {
   }
   .main-footer {
     flex-direction: column;
-  }
-  .comparison-grid {
-    grid-template-columns: 1fr;
-  }
-  .compare-heading {
-    align-items: flex-start;
-  }
-  .compare-heading h2 {
-    font-size: 16px;
-  }
-  .compare-heading p {
-    font-size: 9px;
-  }
-  .compare-heading > span {
-    font-size: 8px;
   }
   .export-actions {
     flex-wrap: wrap;
@@ -1168,9 +1027,6 @@ dialog.export-dialog {
 }
 .keyboard-stage:has(.three-panel) {
   padding: 20px 24px;
-}
-.comparison-card .three-caption {
-  font-size: 8px;
 }
 @media (max-width: 760px) {
   .scene-help {
@@ -1635,4 +1491,14 @@ dialog.export-dialog {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10px;
+}
+
+.global-editor-grid {
+  grid-template-columns: minmax(220px, 0.85fr) minmax(280px, 1.15fr);
+  margin-bottom: 24px;
+}
+@media (max-width: 760px) {
+  .global-editor-grid {
+    grid-template-columns: 1fr;
+  }
 }

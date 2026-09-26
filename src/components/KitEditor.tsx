@@ -24,8 +24,7 @@ import { kitKeySchema, type KitKey } from "../domain/kit-schema";
 import { kitSheet, renderKitSvg, kitGroups } from "../domain/kit-sheet";
 import { defaultProfile, rowName, profiles } from "../domain/profiles";
 import { availableLayouts } from "../domain/design-layout";
-import { DEFAULT_SCENE, TOP } from "../three/settings";
-import SceneToolbar from "./SceneToolbar";
+import type { SceneSettings } from "../three/settings";
 import type { ExportArtifact } from "./ExportDialog";
 import { safeName, UNIT, PAD } from "../renderer/svg";
 const Keyboard3D = lazy(() => import("../three/Keyboard3D"));
@@ -34,8 +33,18 @@ export default function KitEditor({
   onChange,
   onExport,
   onAssetsChange,
+  mode,
+  onMode: setMode,
+  scene,
+  onScene: setScene,
 }: {
   study: Study;
+  mode: "2d" | "3d";
+  onMode: (mode: "2d" | "3d") => void;
+  scene: SceneSettings;
+  onScene: import("react").Dispatch<
+    import("react").SetStateAction<SceneSettings>
+  >;
   onAssetsChange: (assets: ArtworkAsset[]) => void;
   onChange: (kit: KitKey[], targets?: string[]) => void;
   onExport: (a: ExportArtifact) => void;
@@ -43,13 +52,7 @@ export default function KitEditor({
   const kit = getKit(study),
     requirements = kitCoverage(study),
     missing = requirements.filter((r) => r.missing);
-  const [mode, setMode] = useState<"2d" | "3d">("3d"),
-    [filter, setFilter] = useState("all");
-  const [scene, setScene] = useState({
-    ...DEFAULT_SCENE,
-    pose: TOP,
-    projection: "orthographic" as const,
-  } as typeof DEFAULT_SCENE);
+  const [filter, setFilter] = useState("all");
   const [selection, setSelection] = useState<string[]>([]);
   const [anchor, setAnchor] = useState<string | null>(null);
   const selected = selection.filter((id) => kit.some((k) => k.id === id));
@@ -673,12 +676,6 @@ export default function KitEditor({
             </button>
           </form>
         )}
-        <SceneToolbar
-          mode={mode}
-          onMode={setMode}
-          settings={scene}
-          onSettings={setScene}
-        />
         {!sheet.kit.length ? (
           <p className="kit-empty">
             収録キーがありません。「キーを追加」から追加できます。

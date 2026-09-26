@@ -28,7 +28,6 @@ import { layoutSignature, type Layout, type KeyRole } from "./domain/layout";
 import {
   samples,
   getLayout,
-  sameLayout,
   roles,
   roleLabels,
   resolveKeys,
@@ -85,10 +84,7 @@ export default function App() {
     (pose: CameraPose) => setSceneSettings((s) => ({ ...s, pose })),
     [],
   );
-  const [view, setView] = useState<"edit" | "compare" | "kit">("edit");
-  const [compareIds, setCompareIds] = useState(
-    boot.studies.slice(0, 3).map((s) => s.id),
-  );
+  const [previewTarget, setPreviewTarget] = useState<"layout" | "kit">("kit");
   const [search, setSearch] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [blocked, setBlocked] = useState(Boolean(boot.error));
@@ -111,21 +107,7 @@ export default function App() {
     ? selection
     : layout.keys[0].id;
   const resolved = resolveKeys(active).find((k) => k.id === selected)!;
-  const comparisonIds = compareIds.filter((id) =>
-    studies.some((s) => s.id === id && sameLayout(s, active)),
-  );
   useEffect(() => {
-    setCompareIds((ids) => {
-      const matching = ids.filter((id) =>
-        studies.some((s) => s.id === id && sameLayout(s, active)),
-      );
-      return matching.length
-        ? matching
-        : studies
-            .filter((s) => sameLayout(s, active))
-            .slice(0, 3)
-            .map((s) => s.id);
-    });
     setSceneSettings((s) => ({
       ...s,
       pose: ANGLED,
@@ -220,7 +202,6 @@ export default function App() {
     }
     setStudies((all) => [...all, next]);
     setActiveId(next.id);
-    setView("edit");
     setNotice(copy ? "案を複製しました" : "新しい案を作成しました");
   }
   function deleteActive() {
@@ -230,7 +211,6 @@ export default function App() {
     setDeleted((items) => [...items, { study: active, index }]);
     setStudies(remaining);
     setActiveId(remaining[Math.min(index, remaining.length - 1)]?.id ?? "");
-    setCompareIds((ids) => ids.filter((id) => id !== active.id));
     setNotice("");
   }
   function undoDelete() {
@@ -243,7 +223,6 @@ export default function App() {
       setDeleted((items) => items.slice(0, -1));
       setSearch("");
       setFavoritesOnly(false);
-      setView("edit");
       setNotice("セットを復元しました");
     } catch (error) {
       setNotice((error as Error).message);
@@ -259,7 +238,6 @@ export default function App() {
     }
     update((s) => switchLayout(s, layout));
     setSelected(layout.keys[0].id);
-    if (view === "compare") setView("edit");
     setKleOpen(false);
     setPresetOpen(false);
     setNotice(layout.name + "に切り替えました");
@@ -310,7 +288,6 @@ export default function App() {
       setStudies(merged);
       setActiveId(merged[studies.length].id);
       setPendingImport(null);
-      setView("edit");
       setNotice("JSONから案を追加しました。既存の案は保持しています。");
     } catch (error) {
       setNotice((error as Error).message);
@@ -512,6 +489,16 @@ export default function App() {
             <section className="page-heading">
               <h1>キーキャップデザイン</h1>
               <div className="set-actions">
+                <button
+                  className={`star-button ${active.favorite ? "on" : ""}`}
+                  aria-label="お気に入り"
+                  aria-pressed={active.favorite}
+                  onClick={() =>
+                    update((s) => ({ ...s, favorite: !s.favorite }))
+                  }
+                >
+                  {active.favorite ? "★" : "☆"}
+                </button>
                 <button className="quiet-button" onClick={deleteActive}>
                   セットを削除
                 </button>
@@ -520,32 +507,19 @@ export default function App() {
                 </button>
               </div>
             </section>
-            <div className="workbench-tabs">
-              <div>
-                <button
-                  className={view === "edit" ? "active" : ""}
-                  onClick={() => setView("edit")}
-                >
-                  デザインを編集
-                </button>
-                <button
-                  className={view === "kit" ? "active" : ""}
-                  onClick={() => setView("kit")}
-                >
-                  セット展開図
-                </button>
-                <button
-                  className={view === "compare" ? "active" : ""}
-                  onClick={() => setView("compare")}
-                >
-                  並べて比較 <span>{comparisonIds.length}</span>
-                </button>
-              </div>
-              <span className="layout-tag">
-                {layout.name} <span>·</span> {layout.keys.length} KEYS
-              </span>
-            </div>
             <div className="layout-switcher">
+              <label>
+                表示対象
+                <select
+                  value={previewTarget}
+                  onChange={(e) =>
+                    setPreviewTarget(e.target.value as "layout" | "kit")
+                  }
+                >
+                  <option value="kit">収録キー一覧</option>
+                  <option value="layout">配列プレビュー</option>
+                </select>
+              </label>
               <label>
                 プレビュー配列
                 <select
@@ -621,19 +595,176 @@ export default function App() {
               )}
             </details>
 
-            {view !== "kit" && <KitCoverage study={active} />}
-            {view !== "kit" && (
-              <SceneToolbar
-                mode={renderMode}
-                onMode={setRenderMode}
-                settings={sceneSettings}
-                onSettings={setSceneSettings}
-              />
-            )}
-            {view === "kit" ? (
+            <div className="editor-grid global-editor-grid">
+              <section className="editor-card concept-card">
+                <div className="section-title">
+                  <span>01</span>
+                  <h2>コンセプト</h2>
+                </div>
+                <label>
+                  スタディ名
+                  <input
+                    value={active.name}
+                    maxLength={80}
+                    onChange={(e) =>
+                      update((s) => ({
+                        ...s,
+                        name: e.target.value || "Untitled",
+                      }))
+                    }
+                  />
+                </label>
+                <label>
+                  ストーリー
+                  <textarea
+                    rows={3}
+                    maxLength={1200}
+                    value={active.concept}
+                    onChange={(e) =>
+                      update((s) => ({ ...s, concept: e.target.value }))
+                    }
+                  />
+                </label>
+                <label>
+                  キーワード
+                  <input
+                    value={active.keywords}
+                    maxLength={240}
+                    onChange={(e) =>
+                      update((s) => ({ ...s, keywords: e.target.value }))
+                    }
+                    placeholder="quiet / city / midnight"
+                  />
+                </label>
+              </section>
+              <section className="editor-card">
+                <div className="section-title">
+                  <span>02</span>
+                  <h2>カラーパレット</h2>
+                </div>
+                <div className="palette-head">
+                  <span>キーの役割</span>
+                  <span>キー色 / 文字色</span>
+                </div>
+                {roles.map((role) => (
+                  <div className="palette-row" key={role}>
+                    <span
+                      className="palette-preview"
+                      style={{
+                        background: active.palette[role].color,
+                        color: active.palette[role].ink,
+                      }}
+                    >
+                      Aa
+                    </span>
+                    <span className="palette-name">
+                      {roleLabels[role]}
+                      <HexInput
+                        label={`${roleLabels[role]}のHEX`}
+                        value={active.palette[role].color}
+                        onChange={(color) =>
+                          update((s) => ({
+                            ...s,
+                            palette: {
+                              ...s.palette,
+                              [role]: { ...s.palette[role], color },
+                            },
+                          }))
+                        }
+                      />
+                    </span>
+                    <label className="color-input">
+                      <span className="sr-only">
+                        {roleLabels[role]}のキー色
+                      </span>
+                      <input
+                        type="color"
+                        value={active.palette[role].color}
+                        onInput={(e) => {
+                          const color = e.currentTarget.value;
+                          update((s) => ({
+                            ...s,
+                            palette: {
+                              ...s.palette,
+                              [role]: { ...s.palette[role], color },
+                            },
+                          }));
+                        }}
+                      />
+                    </label>
+                    <label className="color-input">
+                      <span className="sr-only">
+                        {roleLabels[role]}の文字色
+                      </span>
+                      <input
+                        type="color"
+                        value={active.palette[role].ink}
+                        onInput={(e) => {
+                          const ink = e.currentTarget.value;
+                          update((s) => ({
+                            ...s,
+                            palette: {
+                              ...s.palette,
+                              [role]: { ...s.palette[role], ink },
+                            },
+                          }));
+                        }}
+                      />
+                    </label>
+                  </div>
+                ))}
+                <div className="legend-options">
+                  <label>
+                    文字の位置
+                    <select
+                      value={active.legend.align}
+                      onChange={(e) =>
+                        update((s) => ({
+                          ...s,
+                          legend: {
+                            ...s.legend,
+                            align: e.target.value as "left" | "center",
+                          },
+                        }))
+                      }
+                    >
+                      <option value="left">左寄せ</option>
+                      <option value="center">中央</option>
+                    </select>
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={active.legend.sublegends}
+                      onChange={(e) =>
+                        update((s) => ({
+                          ...s,
+                          legend: {
+                            ...s.legend,
+                            sublegends: e.target.checked,
+                          },
+                        }))
+                      }
+                    />{" "}
+                    サブレジェンド
+                  </label>
+                </div>
+              </section>
+            </div>
+            <SceneToolbar
+              mode={renderMode}
+              onMode={setRenderMode}
+              settings={sceneSettings}
+              onSettings={setSceneSettings}
+            />
+            <div hidden={previewTarget !== "kit"}>
               <KitEditor
                 key={active.id}
                 study={active}
+                mode={previewTarget === "kit" ? renderMode : "2d"}
+                onMode={setRenderMode}
+                scene={sceneSettings}
+                onScene={setSceneSettings}
                 onAssetsChange={(artworkAssets) =>
                   update((s) => ({ ...s, artworkAssets }))
                 }
@@ -642,23 +773,15 @@ export default function App() {
                 }
                 onExport={setArtifact}
               />
-            ) : view === "edit" ? (
+            </div>
+            {previewTarget === "layout" && (
               <>
+                <KitCoverage study={active} />
                 <section className="preview-panel">
                   <div className="preview-heading">
                     <div>
                       <h2>{active.name}</h2>
                     </div>
-                    <button
-                      className={`star-button ${active.favorite ? "on" : ""}`}
-                      aria-label="お気に入り"
-                      aria-pressed={active.favorite}
-                      onClick={() =>
-                        update((s) => ({ ...s, favorite: !s.favorite }))
-                      }
-                    >
-                      {active.favorite ? "★" : "☆"}
-                    </button>
                   </div>
                   <div className="keyboard-stage">
                     {renderMode === "2d" ? (
@@ -697,298 +820,142 @@ export default function App() {
                     </span>
                   </div>
                 </section>
-                <div className="editor-grid">
-                  <section className="editor-card concept-card">
-                    <div className="section-title">
-                      <span>01</span>
-                      <h2>コンセプト</h2>
-                    </div>
+                <section className="editor-card key-editor">
+                  <div className="section-title">
+                    <span>03</span>
+                    <h2>キーをカスタマイズ</h2>
+                  </div>
+                  <label>
+                    選択中のキー
+                    <select
+                      value={selected}
+                      onChange={(e) => setSelected(e.target.value)}
+                    >
+                      {layout.keys.map((k) => (
+                        <option key={k.id} value={k.id}>
+                          {k.label || "無刻印"} · {k.id} · {k.w}×{k.h}u
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <KitVariantPicker
+                    study={active}
+                    keyId={selected}
+                    onChange={(next) => update(() => next)}
+                  />
+                  <div className="two-fields">
                     <label>
-                      スタディ名
+                      メイン文字
                       <input
-                        value={active.name}
                         maxLength={80}
-                        onChange={(e) =>
-                          update((s) => ({
-                            ...s,
-                            name: e.target.value || "Untitled",
-                          }))
-                        }
+                        value={resolved.main}
+                        onChange={(e) => keyUpdate({ main: e.target.value })}
                       />
                     </label>
                     <label>
-                      ストーリー
-                      <textarea
-                        rows={3}
-                        maxLength={1200}
-                        value={active.concept}
-                        onChange={(e) =>
-                          update((s) => ({ ...s, concept: e.target.value }))
-                        }
-                      />
-                    </label>
-                    <label>
-                      キーワード
+                      サブ文字
                       <input
-                        value={active.keywords}
-                        maxLength={240}
-                        onChange={(e) =>
-                          update((s) => ({ ...s, keywords: e.target.value }))
-                        }
-                        placeholder="quiet / city / midnight"
+                        maxLength={80}
+                        value={resolved.sub}
+                        onChange={(e) => keyUpdate({ sub: e.target.value })}
                       />
                     </label>
-                  </section>
-                  <section className="editor-card">
-                    <div className="section-title">
-                      <span>02</span>
-                      <h2>カラーパレット</h2>
-                    </div>
-                    <div className="palette-head">
-                      <span>キーの役割</span>
-                      <span>キー色 / 文字色</span>
-                    </div>
-                    {roles.map((role) => (
-                      <div className="palette-row" key={role}>
-                        <span
-                          className="palette-preview"
-                          style={{
-                            background: active.palette[role].color,
-                            color: active.palette[role].ink,
-                          }}
-                        >
-                          Aa
-                        </span>
-                        <span className="palette-name">
-                          {roleLabels[role]}
-                          <HexInput
-                            label={`${roleLabels[role]}のHEX`}
-                            value={active.palette[role].color}
-                            onChange={(color) =>
-                              update((s) => ({
-                                ...s,
-                                palette: {
-                                  ...s.palette,
-                                  [role]: { ...s.palette[role], color },
-                                },
-                              }))
-                            }
-                          />
-                        </span>
-                        <label className="color-input">
-                          <span className="sr-only">
-                            {roleLabels[role]}のキー色
-                          </span>
-                          <input
-                            type="color"
-                            value={active.palette[role].color}
-                            onInput={(e) => {
-                              const color = e.currentTarget.value;
-                              update((s) => ({
-                                ...s,
-                                palette: {
-                                  ...s.palette,
-                                  [role]: { ...s.palette[role], color },
-                                },
-                              }));
-                            }}
-                          />
-                        </label>
-                        <label className="color-input">
-                          <span className="sr-only">
-                            {roleLabels[role]}の文字色
-                          </span>
-                          <input
-                            type="color"
-                            value={active.palette[role].ink}
-                            onInput={(e) => {
-                              const ink = e.currentTarget.value;
-                              update((s) => ({
-                                ...s,
-                                palette: {
-                                  ...s.palette,
-                                  [role]: { ...s.palette[role], ink },
-                                },
-                              }));
-                            }}
-                          />
-                        </label>
-                      </div>
-                    ))}
-                    <div className="legend-options">
-                      <label>
-                        文字の位置
-                        <select
-                          value={active.legend.align}
-                          onChange={(e) =>
-                            update((s) => ({
-                              ...s,
-                              legend: {
-                                ...s.legend,
-                                align: e.target.value as "left" | "center",
-                              },
-                            }))
-                          }
-                        >
-                          <option value="left">左寄せ</option>
-                          <option value="center">中央</option>
-                        </select>
-                      </label>
-                      <label className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={active.legend.sublegends}
-                          onChange={(e) =>
-                            update((s) => ({
-                              ...s,
-                              legend: {
-                                ...s.legend,
-                                sublegends: e.target.checked,
-                              },
-                            }))
-                          }
-                        />{" "}
-                        サブレジェンド
-                      </label>
-                    </div>
-                  </section>
-                  <section className="editor-card key-editor">
-                    <div className="section-title">
-                      <span>03</span>
-                      <h2>キーをカスタマイズ</h2>
-                    </div>
+                  </div>
+                  <div className="two-fields">
                     <label>
-                      選択中のキー
+                      色の役割
                       <select
-                        value={selected}
-                        onChange={(e) => setSelected(e.target.value)}
+                        value={resolved.role}
+                        onChange={(e) =>
+                          keyUpdate({ role: e.target.value as KeyRole })
+                        }
                       >
-                        {layout.keys.map((k) => (
-                          <option key={k.id} value={k.id}>
-                            {k.label || "無刻印"} · {k.id} · {k.w}×{k.h}u
+                        {roles.map((r) => (
+                          <option key={r} value={r}>
+                            {roleLabels[r]}
                           </option>
                         ))}
                       </select>
                     </label>
-                    <KitVariantPicker
-                      study={active}
-                      keyId={selected}
-                      onChange={(next) => update(() => next)}
-                    />
-                    <div className="two-fields">
-                      <label>
-                        メイン文字
-                        <input
-                          maxLength={80}
-                          value={resolved.main}
-                          onChange={(e) => keyUpdate({ main: e.target.value })}
-                        />
-                      </label>
-                      <label>
-                        サブ文字
-                        <input
-                          maxLength={80}
-                          value={resolved.sub}
-                          onChange={(e) => keyUpdate({ sub: e.target.value })}
-                        />
-                      </label>
-                    </div>
-                    <div className="two-fields">
-                      <label>
-                        色の役割
-                        <select
-                          value={resolved.role}
-                          onChange={(e) =>
-                            keyUpdate({ role: e.target.value as KeyRole })
-                          }
-                        >
-                          {roles.map((r) => (
-                            <option key={r} value={r}>
-                              {roleLabels[r]}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Novelty
-                        <select
-                          value={resolved.novelty}
-                          onChange={(e) =>
-                            keyUpdate({
-                              novelty: e.target.value as KeyOverride["novelty"],
-                              customArt: null,
-                            })
-                          }
-                        >
-                          {Object.entries(noveltyNames).map(([v, n]) => (
-                            <option key={v} value={v}>
-                              {n}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <div className="key-custom-colors">
-                      <label>
-                        キー色
-                        <input
-                          aria-label="選択キーの色"
-                          type="color"
-                          value={resolved.color}
-                          onInput={(e) =>
-                            keyUpdate({ color: e.currentTarget.value })
-                          }
-                        />
-                      </label>
-                      <label>
-                        文字色
-                        <input
-                          aria-label="選択キーの文字色"
-                          type="color"
-                          value={resolved.ink}
-                          onInput={(e) =>
-                            keyUpdate({ ink: e.currentTarget.value })
-                          }
-                        />
-                      </label>
-                      <button
-                        className="text-button"
-                        disabled={!Object.keys(override).length}
-                        onClick={() =>
-                          update((s) => {
-                            if (selectedVariant)
-                              return {
-                                ...s,
-                                kit: s.kit!.map((k) =>
-                                  k.id === selectedVariant.id
-                                    ? { ...k, artwork: undefined }
-                                    : k,
-                                ),
-                              };
-                            const overrides = { ...s.overrides };
-                            delete overrides[selected];
-                            return { ...s, overrides };
+                    <label>
+                      Novelty
+                      <select
+                        value={resolved.novelty}
+                        onChange={(e) =>
+                          keyUpdate({
+                            novelty: e.target.value as KeyOverride["novelty"],
+                            customArt: null,
                           })
                         }
                       >
-                        このキーをリセット
-                      </button>
-                    </div>
-                    <CustomArtwork
-                      assets={active.artworkAssets ?? []}
-                      value={resolved.customArt}
-                      onAssets={(artworkAssets) =>
-                        update((s) => ({ ...s, artworkAssets }))
+                        {Object.entries(noveltyNames).map(([v, n]) => (
+                          <option key={v} value={v}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="key-custom-colors">
+                    <label>
+                      キー色
+                      <input
+                        aria-label="選択キーの色"
+                        type="color"
+                        value={resolved.color}
+                        onInput={(e) =>
+                          keyUpdate({ color: e.currentTarget.value })
+                        }
+                      />
+                    </label>
+                    <label>
+                      文字色
+                      <input
+                        aria-label="選択キーの文字色"
+                        type="color"
+                        value={resolved.ink}
+                        onInput={(e) =>
+                          keyUpdate({ ink: e.currentTarget.value })
+                        }
+                      />
+                    </label>
+                    <button
+                      className="text-button"
+                      disabled={!Object.keys(override).length}
+                      onClick={() =>
+                        update((s) => {
+                          if (selectedVariant)
+                            return {
+                              ...s,
+                              kit: s.kit!.map((k) =>
+                                k.id === selectedVariant.id
+                                  ? { ...k, artwork: undefined }
+                                  : k,
+                              ),
+                            };
+                          const overrides = { ...s.overrides };
+                          delete overrides[selected];
+                          return { ...s, overrides };
+                        })
                       }
-                      onChange={(customArt) => keyUpdate({ customArt })}
-                    />
-                    {resolved.novelty !== "none" && (
-                      <p className="field-note">
-                        Noveltyは文字の代わりに表示します。
-                      </p>
-                    )}
-                  </section>
-                </div>
+                    >
+                      このキーをリセット
+                    </button>
+                  </div>
+                  <CustomArtwork
+                    assets={active.artworkAssets ?? []}
+                    value={resolved.customArt}
+                    onAssets={(artworkAssets) =>
+                      update((s) => ({ ...s, artworkAssets }))
+                    }
+                    onChange={(customArt) => keyUpdate({ customArt })}
+                  />
+                  {resolved.novelty !== "none" && (
+                    <p className="field-note">
+                      Noveltyは文字の代わりに表示します。
+                    </p>
+                  )}
+                </section>
                 <section className="export-bar">
                   <div>
                     <strong>画像を書き出す</strong>
@@ -1029,105 +996,6 @@ export default function App() {
                   </div>
                 </section>
               </>
-            ) : (
-              <section className="compare-section">
-                <div className="compare-heading">
-                  <div>
-                    <h2>デザインの比較</h2>
-                    <p>
-                      {layout.name}
-                      の案を2〜4件選択。同じ倍率・同じ視点で表示します。
-                    </p>
-                  </div>
-                  <span>{comparisonIds.length} / 4 SELECTED</span>
-                </div>
-                <div className="compare-select">
-                  {studies
-                    .filter((s) => sameLayout(s, active))
-                    .map((s) => (
-                      <label key={s.id}>
-                        <input
-                          type="checkbox"
-                          checked={comparisonIds.includes(s.id)}
-                          disabled={
-                            !comparisonIds.includes(s.id) &&
-                            comparisonIds.length >= 4
-                          }
-                          onChange={(e) =>
-                            setCompareIds((ids) =>
-                              e.target.checked
-                                ? [...ids, s.id]
-                                : ids.filter((id) => id !== s.id),
-                            )
-                          }
-                        />
-                        {s.name}
-                      </label>
-                    ))}
-                </div>
-                {comparisonIds.length < 2 && (
-                  <p className="compare-hint">
-                    比較する案を2つ以上選んでください。
-                  </p>
-                )}
-                <div className="comparison-grid">
-                  {comparisonIds
-                    .map((id) => studies.find((s) => s.id === id))
-                    .filter((s): s is Study => Boolean(s))
-                    .map((s) => (
-                      <article className="comparison-card" key={s.id}>
-                        <div className="comparison-card-title">
-                          <h3>{s.name}</h3>
-                          <button
-                            aria-label={`${s.name}を編集`}
-                            onClick={() => {
-                              setActiveId(s.id);
-                              setView("edit");
-                            }}
-                          >
-                            編集 ↗
-                          </button>
-                        </div>
-                        {renderMode === "2d" ? (
-                          <Keyboard study={s} />
-                        ) : (
-                          <Suspense
-                            fallback={
-                              <div className="three-loading">
-                                3Dエンジンを読み込み中…
-                              </div>
-                            }
-                          >
-                            <Keyboard3D
-                              study={s}
-                              settings={sceneSettings}
-                              onPose={updatePose}
-                              exportWidth={pngWidth}
-                              onExport={(blob, name) =>
-                                setArtifact({
-                                  blob,
-                                  name: `${safeName(name)}-3d.png`,
-                                  kind: "png",
-                                })
-                              }
-                            />
-                          </Suspense>
-                        )}
-                        <div className="comparison-meta">
-                          <span>{s.keywords}</span>
-                          <span className="mini-swatches">
-                            {roles.map((r) => (
-                              <i
-                                key={r}
-                                style={{ background: s.palette[r].color }}
-                              />
-                            ))}
-                          </span>
-                        </div>
-                      </article>
-                    ))}
-                </div>
-              </section>
             )}
           </>
         )}
