@@ -1,6 +1,12 @@
 import { it, expect } from "vitest";
 import { samples, parseLibrary, resolveKeys, duplicateStudy } from "./model";
-import { getKit, kitCoverage, addKitKeys } from "./kit";
+import {
+  getKit,
+  kitCoverage,
+  addKitKeys,
+  layoutKit,
+  kitSignature,
+} from "./kit";
 import { switchLayout } from "./design-layout";
 import { layoutPresets } from "./presets";
 import { serialize } from "../storage/library";
@@ -55,13 +61,13 @@ it("retains kit-specific artwork in previews and separate visual variants", () =
       },
     ]),
   };
-  const sheet = kitSheet(s);
+  const sheet = kitSheet(s, "inventory");
   expect(
     resolveKeys(sheet.study)
       .filter((k) => k.label === "Q")
       .map((k) => k.color),
   ).toEqual(["#123456", "#abcdef"]);
-  const svg = renderKitSvg(s);
+  const svg = renderKitSvg(s, "inventory");
   expect(svg).toContain("ノベルティ");
   expect(svg).toContain("#abcdef");
 });
@@ -84,7 +90,7 @@ it("packs tall extra keys without overlap and renders stored F-row entries after
         })),
     ),
   };
-  const sheet = kitSheet({ ...s, profile: "cherry" });
+  const sheet = kitSheet({ ...s, profile: "cherry" }, "inventory");
   const keys = sheet.study.layout!.keys;
   for (let i = 0; i < keys.length; i++)
     for (let j = i + 1; j < keys.length; j++) {
@@ -159,7 +165,7 @@ it("uses full-size width and fills the next row beside spanning keys", () => {
       h: 1,
     },
   ];
-  const layout = kitSheet({ ...samples[0], kit }).study.layout!;
+  const layout = kitSheet({ ...samples[0], kit }, "inventory").study.layout!;
   const [tall, short, next, third] = layout.keys;
   expect(layout.width).toBeGreaterThanOrEqual(22.5 + 1.4);
   expect(next.y - tall.y).toBeCloseTo(1);
@@ -196,7 +202,7 @@ it("keeps navigation and arrow clusters intact across rows and legend edits", ()
     placement: undefined,
     artwork: { main: "custom" },
   }));
-  const keys = kitSheet({ ...samples[0], kit }).study.layout!.keys;
+  const keys = kitSheet({ ...samples[0], kit }, "inventory").study.layout!.keys;
   const k = (name: string) => keys.find((key) => key.label === name)!;
   expect(keys).toHaveLength(kit.length);
   expect(k("Home").x - k("Insert").x).toBeCloseTo(1);
@@ -215,8 +221,10 @@ it("keeps navigation and arrow clusters intact across rows and legend edits", ()
     id: "extra-end",
     row: 4,
   };
-  const partialKeys = kitSheet({ ...samples[0], kit: [...partial, duplicate] })
-    .study.layout!.keys;
+  const partialKeys = kitSheet(
+    { ...samples[0], kit: [...partial, duplicate] },
+    "inventory",
+  ).study.layout!.keys;
   expect(partialKeys).toHaveLength(partial.length + 1);
   const ends = partialKeys.filter((key) => key.label === "End");
   expect(ends[0].y).not.toBe(ends[1].y);
@@ -230,7 +238,7 @@ it("keeps navigation and arrow clusters intact across rows and legend edits", ()
     }
 });
 
-it("composes a full-size kit around the base with JIS on its right", () => {
+it("compares ANSI and JIS at their exact preset coordinates with shared inventory", () => {
   let study = switchLayout(samples[0], preset("preset-fullsize_jis-v1"));
   study = {
     ...study,
@@ -248,61 +256,66 @@ it("composes a full-size kit around the base with JIS on its right", () => {
   };
   const sheet = kitSheet(study),
     keys = sheet.study.layout!.keys;
-  const k = (name: string, group?: string) =>
-    keys.find(
-      (k) =>
-        k.label === name &&
-        (!group || study.kit!.find((a) => a.id === k.id)!.group === group),
-    )!;
-  const base = keys.filter(
-    (key) => study.kit!.find((a) => a.id === key.id)!.group === "base",
-  );
-  const right = Math.max(...base.map((k) => k.x + k.w));
-  const bottom = Math.max(...base.map((k) => k.y + k.h));
-  expect(k("F1").y + 1).toBeLessThanOrEqual(k("1", "base").y);
-  expect(k("半角/全角").x).toBeGreaterThan(right);
-  expect(k("無変換").y).toBeCloseTo(k("Shift", "extras").y);
-  expect(k("Home").x).toBeGreaterThan(k("半角/全角").x);
-  expect(k("Home").x).toBeLessThan(k("Num").x);
-  expect(k("↑").x).toBeLessThan(k("Num").x);
-  expect(k("Shift", "extras").y).toBeGreaterThanOrEqual(bottom);
-  const jisSpace = keys.find((k) => k.shape === "space" && k.w === 3.25)!;
-  const ansiBottom = keys.filter(
-    (key) =>
-      study.kit!.find((a) => a.id === key.id)!.group === "extras" &&
-      ["Shift", "Alt", "Super", "Menu"].includes(key.label),
-  );
-  expect(k("無変換").x).toBeCloseTo(
-    Math.max(...ansiBottom.map((key) => key.x + key.w)),
-  );
-  const bottomRow = [k("無変換"), jisSpace, k("変換"), k("かな")];
-  for (let i = 1; i < bottomRow.length; i++) {
-    expect(bottomRow[i].y).toBeCloseTo(bottomRow[0].y);
-    expect(bottomRow[i].x).toBeCloseTo(bottomRow[i - 1].x + bottomRow[i - 1].w);
+  for (const id of ["preset-fullsize_ansi-v1", "preset-fullsize_jis-v1"]) {
+    const original = preset(id);
+    const shown = keys.filter((k) => k.id.startsWith(id + ":"));
+    const ansiSignatures = new Set(
+      layoutKit(study, preset("preset-fullsize_ansi-v1")).map((k) =>
+        kitSignature(k, study),
+      ),
+    );
+    const expectedIndices = layoutKit(study, original)
+      .map((k, i) => ({ k, i }))
+      .filter(
+        ({ k }) =>
+          id.includes("ansi") || !ansiSignatures.has(kitSignature(k, study)),
+      )
+      .map(({ i }) => i);
+    expect(shown).toHaveLength(expectedIndices.length);
+    const dy = shown[0].y - original.keys[expectedIndices[0]].y;
+    for (let i = 0; i < shown.length; i++) {
+      expect(shown[i]).toMatchObject({
+        label: original.keys[expectedIndices[i]].label,
+        w: original.keys[expectedIndices[i]].w,
+        h: original.keys[expectedIndices[i]].h,
+        shape: original.keys[expectedIndices[i]].shape,
+      });
+      expect(shown[i].x - original.keys[expectedIndices[i]].x).toBeCloseTo(1.4);
+      expect(shown[i].y - original.keys[expectedIndices[i]].y).toBeCloseTo(dy);
+    }
   }
-  const otherSpace = {
-    ...study.kit!.find((k) => k.shape === "space")!,
-    id: "six-u",
-    w: 6,
-    group: "extras" as const,
-    placement: undefined,
-  };
-  const variantSheet = kitSheet({ ...study, kit: [...study.kit!, otherSpace] });
-  const variant = variantSheet.study.layout!.keys.find(
-    (k) => k.id === "six-u",
-  )!;
-  const baseSpace = base.find((k) => k.shape === "space")!;
-  expect(variant.x).toBeCloseTo(baseSpace.x);
-  expect(variant.y).toBeGreaterThan(baseSpace.y);
-  expect(new Set(keys.map((k) => k.id))).toEqual(
+  const ansi = (label: string) =>
+    keys.find(
+      (k) => k.id.startsWith("preset-fullsize_ansi-v1:") && k.label === label,
+    )!;
+  const jis = (label: string) =>
+    keys.find(
+      (k) => k.id.startsWith("preset-fullsize_jis-v1:") && k.label === label,
+    )!;
+  expect(ansi("Esc").y).toBeLessThan(ansi("`").y);
+  expect(ansi("Esc").x).toBe(ansi("`").x);
+  expect(jis("@").y).toBe(jis("Enter").y);
+  expect(jis(":").y - jis("@").y).toBeCloseTo(1);
+  expect(jis("]").y).toBe(jis(":").y);
+  expect(jis("]").x).toBeGreaterThan(jis(":").x);
+  expect(jis("A")).toBeUndefined();
+  expect(keys.filter((k) => k.label === "A")).toHaveLength(1);
+  expect(sheet.missingIds.has(ansi("`").id)).toBe(true);
+  expect(new Set(Object.values(sheet.sourceIds))).toEqual(
     new Set(study.kit!.map((k) => k.id)),
   );
-  for (let i = 0; i < keys.length; i++)
-    for (const b of keys.slice(i + 1)) {
-      const a = keys[i];
-      expect(
-        Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 1e-6 &&
-          Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 1e-6,
-      ).toBe(false);
-    }
+  expect(new Set(keys.map((k) => k.id)).size).toBe(keys.length);
+  expect(renderKitSvg(study)).toContain("未収録");
+  const extra = {
+    ...study.kit![0],
+    id: "novelty-variant",
+    group: "novelty" as const,
+    artwork: { color: "#abcdef" },
+  };
+  const withExtra = kitSheet({ ...study, kit: [...study.kit!, extra] });
+  expect(withExtra.sourceIds["extra:novelty-variant"]).toBe(extra.id);
+  expect(
+    resolveKeys(withExtra.study).find((k) => k.id === "extra:novelty-variant")!
+      .color,
+  ).toBe("#abcdef");
 });

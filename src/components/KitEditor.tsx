@@ -93,6 +93,21 @@ export default function KitEditor({
       setError((e as Error).message);
     }
   }
+  function selectSheetKey(id: string) {
+    const sourceId = sheet.sourceIds[id];
+    if (sourceId) setSelected(sourceId);
+    else {
+      const key = sheet.kit.find((k) => k.id === id);
+      if (key)
+        add([
+          {
+            ...key,
+            group: key.group === "numpad" ? "numpad" : "extras",
+            placement: undefined,
+          },
+        ]);
+    }
+  }
   const groups = Object.entries(kitGroups);
   return (
     <section className="kit-editor">
@@ -106,7 +121,8 @@ export default function KitEditor({
         <label>
           表示キット{" "}
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="all">すべて</option>
+            <option value="all">ANSI / JIS 比較</option>
+            <option value="inventory">収録キー一覧</option>
             {groups.map(([id, name]) => (
               <option key={id} value={id}>
                 {name}
@@ -385,6 +401,11 @@ export default function KitEditor({
         </form>
       )}
       {error && <p role="alert">{error}</p>}
+      {filter === "all" && (
+        <p className="kit-note">
+          ANSIを土台に、JISで用途・R・寸法・形状が異なるキーだけを実配列の位置に揃えて下へ表示します。グレーの未収録キーはクリックで追加できます。
+        </p>
+      )}
       <SceneToolbar
         mode={mode}
         onMode={setMode}
@@ -409,14 +430,13 @@ export default function KitEditor({
           {sheet.study.layout!.keys.map((k) => (
             <button
               key={k.id}
-              className={selected === k.id ? "kit-hit selected" : "kit-hit"}
-              aria-label={`収録キー ${
-                kitArtwork(
-                  study,
-                  kit.find((a) => a.id === k.id)!,
-                ).main || "Space"
-              } ${k.w}u ${k.id}`}
-              onClick={() => setSelected(k.id)}
+              className={
+                selected === sheet.sourceIds[k.id]
+                  ? "kit-hit selected"
+                  : "kit-hit"
+              }
+              aria-label={`${sheet.missingIds.has(k.id) ? "未収録キーを追加" : "収録キー"} ${k.label || "Space"} ${k.w}u ${k.id}`}
+              onClick={() => selectSheetKey(k.id)}
               style={{
                 clipPath:
                   k.shape === "iso-enter" ? enterClipPath(UNIT, 0) : undefined,
@@ -440,7 +460,7 @@ export default function KitEditor({
             }
             settings={scene}
             onPose={(pose) => setScene((s) => ({ ...s, pose }))}
-            onSelect={setSelected}
+            onSelect={selectSheetKey}
             onExport={(blob) =>
               onExport({
                 blob,
@@ -621,7 +641,10 @@ export default function KitEditor({
         )}
       </div>
       <p className="kit-note">
-        同一種類は1枚で表示し、2個以上は2D図の×数で示します。収録判定はキーの用途・R・u・形状・数量で行います。
+        {filter === "all"
+          ? "共通キーは1回だけ表示します。JIS差分の空欄は、上の共通キーを使用する位置です。"
+          : "同一種類は1枚で表示し、2個以上は2D図の×数で示します。"}
+        収録判定はキーの用途・R・u・形状・数量で行います。
       </p>
     </section>
   );
