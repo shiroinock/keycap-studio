@@ -149,9 +149,11 @@ function fullKitSheet(study: Study) {
             (k.label === "Backspace" && k.w === 1))),
     )
     .sort((a, b) => a.row - b.row || bottomOrder(a) - bottomOrder(b));
+  const jisBottom = jis.filter((k) => bottomOrder(k) >= 0);
+  const jisUpper = jis.filter((k) => !jisBottom.includes(k));
   const jisKeys: LayoutKey[] = [];
   const jisX = baseRight + 0.5;
-  for (const k of jis) {
+  for (const k of jisUpper) {
     let x = jisX;
     const py = mainY + Math.max(0, k.row);
     while (true) {
@@ -169,8 +171,9 @@ function fullKitSheet(study: Study) {
     jisKeys.push(placed);
     keys.push(placed);
   }
-  if (jis.length) labels.push({ x: jisX, y: baseTop, text: "JIS", width: 3 });
-  const navX = jis.length
+  if (jisUpper.length)
+    labels.push({ x: jisX, y: baseTop, text: "JIS", width: 3 });
+  const navX = jisUpper.length
     ? Math.max(...jisKeys.map((k) => k.x + k.w)) + 0.5
     : jisX;
   let sideEnd = Math.max(baseEnd, ...jisKeys.map((k) => k.y + k.h));
@@ -257,6 +260,26 @@ function fullKitSheet(study: Study) {
     }
   }
   below(bottom);
+  if (jisBottom.length) {
+    const spaceIndex = jisBottom.findIndex(isJisSpace);
+    const beforeSpace =
+      spaceIndex < 0
+        ? 0
+        : jisBottom.slice(0, spaceIndex).reduce((sum, k) => sum + k.w, 0);
+    let x =
+      spaceIndex < 0
+        ? 1.4
+        : Math.max(
+            1.4,
+            (baseKeys.find((k) => k.shape === "space")?.x ?? 4.4) - beforeSpace,
+          );
+    labels.push({ x: 0, y: lowerY + 0.25, text: "JIS", width: 1.2 });
+    for (const k of jisBottom) {
+      keys.push({ ...k, x, y: lowerY, rotation: 0 });
+      x += k.w;
+    }
+    lowerY += Math.max(...jisBottom.map((k) => k.h));
+  }
   below(spaces, true);
   // Other row variants follow below the main block; the existing packer retains tall-key spans.
   lowerY = panel(rest, "extras", 0, Math.max(lowerY, sideEnd) + 0.3);

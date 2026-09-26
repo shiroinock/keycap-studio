@@ -261,12 +261,13 @@ it("composes a full-size kit around the base with JIS on its right", () => {
   const bottom = Math.max(...base.map((k) => k.y + k.h));
   expect(k("F1").y + 1).toBeLessThanOrEqual(k("1", "base").y);
   expect(k("半角/全角").x).toBeGreaterThan(right);
-  expect(k("無変換").x).toBeGreaterThan(right);
+  expect(k("無変換").y).toBeCloseTo(k("Shift", "extras").y + 1);
   expect(k("Home").x).toBeGreaterThan(k("半角/全角").x);
   expect(k("Home").x).toBeLessThan(k("Num").x);
   expect(k("↑").x).toBeLessThan(k("Num").x);
   expect(k("Shift", "extras").y).toBeGreaterThanOrEqual(bottom);
   const jisSpace = keys.find((k) => k.shape === "space" && k.w === 3.25)!;
+  expect(jisSpace.x).toBeCloseTo(base.find((k) => k.shape === "space")!.x);
   const bottomRow = [k("無変換"), jisSpace, k("変換"), k("かな")];
   for (let i = 1; i < bottomRow.length; i++) {
     expect(bottomRow[i].y).toBeCloseTo(bottomRow[0].y);
