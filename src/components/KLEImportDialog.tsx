@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { parseKLE } from "../domain/kle";
 import type { Layout } from "../domain/layout";
+import { switchLayout } from "../domain/design-layout";
 import type { Study } from "../domain/model";
 import Keyboard from "./Keyboard";
 export default function KLEImportDialog({
@@ -113,18 +114,10 @@ export default function KLEImportDialog({
               margin: "auto",
             }}
           >
-            <Keyboard
-              study={{
-                ...template,
-                schemaVersion: 2,
-                layoutId: layout.id,
-                layout,
-                overrides: {},
-              }}
-            />
+            <Keyboard study={switchLayout(template, layout)} />
           </div>
           <p>
-            現在のパレットで新しい案を作成します。KLEの色・文字の配置や書式・プロファイル指定は取り込みません。文字はメイン／サブの最大2つ、行形状は上から順に割り当てます。
+            同じデザインに配列を追加して切り替えます。KLEの色・文字の配置や書式・プロファイル指定は取り込みません。文字はメイン／サブの最大2つ、行形状は上から順に割り当てます。
           </p>
         </section>
       )}
@@ -137,7 +130,7 @@ export default function KLEImportDialog({
             layout && onImport({ ...layout, name: layout.name.trim() })
           }
         >
-          この配列で案を作成
+          この配列に切り替え
         </button>
       </div>
     </dialog>

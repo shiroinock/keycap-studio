@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { layoutPresets } from "../domain/presets";
 import type { Layout } from "../domain/layout";
+import { switchLayout } from "../domain/design-layout";
 import type { Study } from "../domain/model";
 import Keyboard from "./Keyboard";
 export default function PresetDialog({
@@ -58,17 +59,11 @@ export default function PresetDialog({
           margin: "auto",
         }}
       >
-        <Keyboard
-          study={{
-            ...template,
-            schemaVersion: layout.id === "ansi60" ? 1 : 2,
-            layoutId: layout.id,
-            layout: layout.id === "ansi60" ? undefined : layout,
-            overrides: {},
-          }}
-        />
+        <Keyboard study={switchLayout(template, layout)} />
       </div>
-      <p>現在のパレットで新しい案を作成します。</p>
+      <p>
+        同じデザインで配列を切り替えます。配列にないキーの編集も保持します。
+      </p>
       <details>
         <summary>収録範囲</summary>
         <p>
@@ -79,7 +74,7 @@ export default function PresetDialog({
       <div className="modal-actions">
         <button onClick={onCancel}>キャンセル</button>
         <button className="primary" onClick={() => onCreate(layout)}>
-          この配列で案を作成
+          この配列に切り替え
         </button>
       </div>
     </dialog>

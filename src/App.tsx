@@ -1,3 +1,5 @@
+import KitCoverage from "./components/KitCoverage";
+import { profiles, profileIds, defaultProfile } from "./domain/profiles";
 import {
   lazy,
   Suspense,
@@ -12,6 +14,7 @@ import SceneToolbar from "./components/SceneToolbar";
 import { DEFAULT_SCENE, ANGLED, type CameraPose } from "./three/settings";
 import type { Capture3D } from "./three/Keyboard3D";
 const Keyboard3D = lazy(() => import("./three/Keyboard3D"));
+import { availableLayouts, switchLayout } from "./domain/design-layout";
 import PresetDialog from "./components/PresetDialog";
 import KLEImportDialog from "./components/KLEImportDialog";
 import ImportDialog from "./components/ImportDialog";
@@ -179,6 +182,8 @@ export default function App() {
       next.concept = "";
       next.keywords = "";
       next.overrides = {};
+      next.designKeys = next.schemaVersion === 3 ? {} : undefined;
+      next.layouts = next.schemaVersion === 3 ? [getLayout(next)] : undefined;
     }
     setStudies((all) => [...all, next]);
     setActiveId(next.id);
@@ -186,27 +191,19 @@ export default function App() {
     setNotice(copy ? "案を複製しました" : "新しい案を作成しました");
   }
   function importLayout(layout: Layout) {
-    if (studies.length >= 200) {
-      setNotice("案は200件まで保存できます");
+    if (
+      (active.layouts?.length ?? 0) >= 40 &&
+      !active.layouts?.some((l) => l.id === layout.id)
+    ) {
+      setNotice("ひとつのデザインに保持できる配列は40種類までです");
       return;
     }
-    const next: Study = {
-      ...duplicateStudy(active),
-      schemaVersion: layout.id === "ansi60" ? 1 : 2,
-      layoutId: layout.id,
-      layout: layout.id === "ansi60" ? undefined : structuredClone(layout),
-      name: layout.name,
-      concept: "",
-      keywords: "",
-      overrides: {},
-    };
-    setStudies((all) => [...all, next]);
-    setActiveId(next.id);
+    update((s) => switchLayout(s, layout));
     setSelected(layout.keys[0].id);
     setView("edit");
     setKleOpen(false);
     setPresetOpen(false);
-    setNotice(`${layout.keys.length}キーの配列で案を作成しました`);
+    setNotice(layout.name + "に切り替えました");
   }
   async function exportImage(kind: "svg" | "png") {
     setExporting(true);
@@ -284,10 +281,10 @@ export default function App() {
           ＋ 新しいスタディ
         </button>
         <button className="import-layout" onClick={() => setPresetOpen(true)}>
-          ＋ 配列プリセット
+          配列の一覧
         </button>
         <button className="import-layout" onClick={() => setKleOpen(true)}>
-          ＋ KLE配列を読み込む
+          KLE配列を追加
         </button>
         <input
           className="search"
@@ -441,6 +438,80 @@ export default function App() {
             {layout.name} <span>·</span> {layout.keys.length} KEYS
           </span>
         </div>
+        <div className="layout-switcher">
+          <label>
+            プレビュー配列
+            <select
+              value={layout.id}
+              onChange={(e) => {
+                const target = availableLayouts(active).find(
+                  (l) => l.id === e.target.value,
+                );
+                if (target) importLayout(target);
+              }}
+            >
+              {availableLayouts(active).map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name} · {l.keys.length}キー
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            プロファイル
+            <select
+              value={active.profile ?? defaultProfile}
+              onChange={(e) =>
+                update((s) => ({
+                  ...s,
+                  profile: e.target.value as typeof defaultProfile,
+                }))
+              }
+            >
+              {[
+                ...new Set(
+                  profileIds.map((id) => profiles[id].group ?? "その他"),
+                ),
+              ].map((group) => (
+                <optgroup key={group} label={group}>
+                  {profileIds
+                    .filter((id) => (profiles[id].group ?? "その他") === group)
+                    .map((id) => (
+                      <option key={id} value={id}>
+                        {profiles[id].name}
+                      </option>
+                    ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          <span>
+            共通キーの編集を引き継ぎます · プロファイルは3Dに反映（概形）
+          </span>
+        </div>
+        <details className="profile-info">
+          <summary>プロファイルの仕様・参照元</summary>
+          <p>
+            {profiles[active.profile ?? defaultProfile].name} ·{" "}
+            {profiles[active.profile ?? defaultProfile].uniform
+              ? "均一"
+              : "段差あり"}{" "}
+            · 外観確認用の概形
+          </p>
+          <p>
+            公開資料を参考に高さ・傾斜・天面を近似しています。実測CADではありません。選択した配列の全キーへ形状を適用しますが、実製品のR・u収録や取付互換性を示すものではありません。
+          </p>
+          {profiles[active.profile ?? defaultProfile].source && (
+            <a
+              href={profiles[active.profile ?? defaultProfile].source}
+              target="_blank"
+              rel="noreferrer"
+            >
+              メーカー・設計者の資料
+            </a>
+          )}
+        </details>
+        <KitCoverage study={active} />
         <SceneToolbar
           mode={renderMode}
           onMode={setRenderMode}

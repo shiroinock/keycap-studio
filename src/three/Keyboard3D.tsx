@@ -1,3 +1,4 @@
+import { profiles, defaultProfile } from "../domain/profiles";
 import { layoutSignature, type Layout } from "../domain/layout";
 import {
   Component,
@@ -31,7 +32,7 @@ import {
   type ResolvedKey,
 } from "../domain/model";
 import { textureSource } from "./artwork";
-import { createKeyGeometry, keyPosition, PROFILE_NAME } from "./profile";
+import { createKeyGeometry, keyPosition } from "./profile";
 import { VIEW_ASPECT, type CameraPose, type SceneSettings } from "./settings";
 export type Capture3D = (width: number) => Promise<Blob>;
 interface Props {
@@ -68,8 +69,16 @@ const Cap = memo(function Cap({
 }) {
   const { invalidate } = useThree();
   const geometry = useMemo(
-    () => createKeyGeometry(data),
-    [data.w, data.h, data.row, data.id, data.shape],
+    () => createKeyGeometry(data, study.profile),
+    [
+      data.w,
+      data.h,
+      data.row,
+      data.id,
+      data.shape,
+      data.profileRow,
+      study.profile,
+    ],
   );
   const [texture, setTexture] = useState<CanvasTexture | null>(null);
   const source = textureSource(data, study);
@@ -535,7 +544,8 @@ export default function Keyboard3D({
       </div>
       <div className="three-caption">
         <span>
-          {PROFILE_NAME} · {ready}/{layout.keys.length} KEYS
+          {profiles[study.profile ?? defaultProfile].name}（概形） · {ready}/
+          {layout.keys.length} KEYS
         </span>
         <span>
           {settings.projection === "perspective" ? "PHOTO" : "ORTHO"} ·{" "}

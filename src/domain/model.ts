@@ -1,3 +1,4 @@
+import { profileIds, profileRowIndex, defaultProfile } from "./profiles";
 import { z } from "zod";
 import {
   ansi60,
@@ -23,13 +24,23 @@ const overrideSchema = z
 const pair = z.object({ color, ink: color }).strict();
 export const studySchema = z
   .object({
-    schemaVersion: z.union([z.literal(1), z.literal(2)]),
+    schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     id: z.string().min(1).max(100),
     name: z.string().min(1).max(80),
     concept: z.string().max(1200),
     keywords: z.string().max(240),
     layoutId: z.string().min(1).max(100),
     layout: layoutSchema.optional(),
+    profile: z.preprocess((value) => {
+      const legacy: Record<string, string> = {
+        "studio-sculpted-v2": "cherry",
+        "studio-uniform": "dsa",
+        "studio-low": "lsa",
+      };
+      return typeof value === "string" ? (legacy[value] ?? value) : value;
+    }, z.enum(profileIds).optional()),
+    designKeys: z.record(z.string(), overrideSchema).optional(),
+    layouts: z.array(layoutSchema).max(40).optional(),
     palette: z.object({ base: pair, modifier: pair, accent: pair }).strict(),
     legend: z
       .object({ align: z.enum(["left", "center"]), sublegends: z.boolean() })
@@ -48,6 +59,10 @@ export const studySchema = z
       (!s.layout || s.layoutId !== s.layout.id || s.layout.id === "ansi60")
     )
       ctx.addIssue({ code: "custom", message: "配列データとIDが一致しません" });
+    if (s.schemaVersion === 3 && (!s.layout || s.layoutId !== s.layout.id))
+      ctx.addIssue({ code: "custom", message: "配列データとIDが一致しません" });
+    if (s.schemaVersion !== 3 && (s.designKeys || s.layouts))
+      ctx.addIssue({ code: "custom", message: "セットの共有キーはv3専用です" });
     const layout = s.layout ?? ansi60;
     if (
       !Object.keys(s.overrides).every((id) =>
@@ -61,7 +76,7 @@ export const studySchema = z
   });
 export const librarySchema = z
   .object({
-    schemaVersion: z.union([z.literal(1), z.literal(2)]),
+    schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     studies: z.array(studySchema).min(1).max(200),
   })
   .strict()
@@ -70,8 +85,7 @@ export const librarySchema = z
     "案のIDが重複しています",
   )
   .refine(
-    (v) =>
-      v.schemaVersion === 2 || v.studies.every((s) => s.schemaVersion === 1),
+    (v) => v.studies.every((s) => s.schemaVersion <= v.schemaVersion),
     "v1形式にカスタム配列は保存できません",
   );
 export type Study = z.infer<typeof studySchema>;
@@ -110,7 +124,11 @@ export function resolveKeys(study: Study): ResolvedKey[] {
       color: o.color ?? pair.color,
       ink: o.ink ?? pair.ink,
       novelty: o.novelty ?? "none",
-      profileRow: k.row,
+      profileRow: profileRowIndex(
+        k,
+        getLayout(study),
+        study.profile ?? defaultProfile,
+      ),
     };
   });
 }

@@ -15,7 +15,7 @@ describe("3D geometry and artwork", () => {
       expect(d.depth).toBeCloseTo(18.15);
       expect(d.width - d.topWidth).toBeCloseTo(5.2);
     }
-    expect(new Set(ROWS.map((r) => r.height)).size).toBe(5);
+    expect(new Set(ROWS.map((r) => r.height)).size).toBe(4);
     expect(
       keyDimensions(ansi60.keys.find((k) => k.id === "space")!).dish,
     ).toBeLessThan(0);

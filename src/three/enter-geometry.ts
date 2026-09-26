@@ -10,10 +10,10 @@ export function createEnterGeometry(
   pitch: number,
   height: number,
   tilt: number,
+  topInset = 3.05,
 ) {
   const width = 1.5 * pitch,
-    depth = 2 * pitch,
-    topInset = 3.05;
+    depth = 2 * pitch;
   const topY = (z: number) => height + tilt * z;
   // Round the outline without changing its vertex correspondence between rings.
   function contour(inset: number) {

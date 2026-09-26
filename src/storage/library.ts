@@ -2,7 +2,10 @@ import { parseLibrary, type Study, type Library } from "../domain/model";
 export const STORAGE_KEY = "keycap-studio.library.v2";
 export const LEGACY_STORAGE_KEY = "keycap-studio.library.v1";
 export function serialize(studies: Study[]): string {
-  const data: Library = { schemaVersion: 2, studies };
+  const data: Library = {
+    schemaVersion: studies.some((s) => s.schemaVersion === 3) ? 3 : 2,
+    studies,
+  };
   return JSON.stringify(data, null, 2);
 }
 export function loadLibrary(storage: Pick<Storage, "getItem">): Study[] | null {

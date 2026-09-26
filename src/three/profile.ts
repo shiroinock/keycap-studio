@@ -1,24 +1,21 @@
+import { profiles, defaultProfile, type ProfileId } from "../domain/profiles";
 import { createEnterGeometry } from "./enter-geometry";
 import { BufferGeometry, Float32BufferAttribute } from "three";
 import type { ResolvedKey } from "../domain/model";
 import { ansi60, type Layout } from "../domain/layout";
-export const PROFILE_ID = "studio-sculpted-v2";
-export const PROFILE_NAME = "Studio Sculpted v2（概形）";
-// Original visual study, millimetres. Not manufacturer-compatible CAD.
-export const ROWS = [
-  { height: 10.8, tilt: -0.13 },
-  { height: 9.5, tilt: -0.08 },
-  { height: 8.4, tilt: 0 },
-  { height: 8.7, tilt: 0.1 },
-  { height: 9.6, tilt: 0.16 },
-];
+// Visual approximations, millimetres. Not manufacturer-compatible CAD.
+export const ROWS = profiles[defaultProfile].rows;
 export function keyDimensions(
-  key: Pick<ResolvedKey, "w" | "h" | "row" | "id" | "shape">,
+  key: Pick<ResolvedKey, "w" | "h" | "row" | "id" | "shape"> &
+    Partial<Pick<ResolvedKey, "profileRow">>,
+  profile: ProfileId = defaultProfile,
 ) {
-  const row = ROWS[key.row];
+  const settings = profiles[profile];
+  const row =
+    key.profileRow === -1 ? settings.functionRow : settings.rows[key.row];
   if (!row) throw new Error("プロファイルの行が不正です");
-  const width = key.w * ansi60.pitchMm - 0.9,
-    depth = key.h * ansi60.pitchMm - 0.9;
+  const width = key.w * ansi60.pitchMm - (settings.widthGap ?? 0.9),
+    depth = key.h * ansi60.pitchMm - (settings.depthGap ?? 0.9);
   if (
     !Number.isFinite(width) ||
     !Number.isFinite(depth) ||
@@ -29,11 +26,19 @@ export function keyDimensions(
   return {
     width,
     depth,
-    topWidth: width - 5.2,
-    topDepth: depth - 5.2,
-    height: key.shape === "space" || key.id === "space" ? 8.5 : row.height,
-    tilt: key.shape === "space" || key.id === "space" ? 0.08 : row.tilt,
-    dish: key.shape === "space" || key.id === "space" ? -0.4 : 0.7,
+    topWidth: width - (settings.topInset ?? 5.2),
+    topDepth: depth - (settings.topInset ?? 5.2),
+    height:
+      key.shape === "space" || key.id === "space"
+        ? settings.spaceHeight
+        : row.height,
+    tilt:
+      key.shape === "space" || key.id === "space"
+        ? settings.spaceTilt
+        : row.tilt,
+    dishX:
+      key.shape === "space" || key.id === "space" ? 0 : (settings.dishX ?? 0),
+    dish: key.shape === "space" || key.id === "space" ? -0.4 : settings.dish,
   };
 }
 export function keyPosition(
@@ -47,20 +52,31 @@ export function keyPosition(
   ];
 }
 export function createKeyGeometry(
-  key: Pick<ResolvedKey, "w" | "h" | "row" | "id" | "shape">,
+  key: Pick<ResolvedKey, "w" | "h" | "row" | "id" | "shape"> &
+    Partial<Pick<ResolvedKey, "profileRow">>,
+  profile: ProfileId = defaultProfile,
 ) {
-  const d = keyDimensions(key);
+  const d = keyDimensions(key, profile);
   if (key.shape === "iso-enter")
     return {
-      ...createEnterGeometry(ansi60.pitchMm, d.height, d.tilt),
+      ...createEnterGeometry(
+        ansi60.pitchMm,
+        d.height,
+        d.tilt,
+        (ansi60.pitchMm * key.w - d.topWidth) / 2,
+      ),
       dimensions: d,
     };
-  const surface = (z: number) =>
-    d.height + d.tilt * z - d.dish * (1 - (z / (d.topDepth / 2)) ** 2);
-  const normal = (z: number) => {
+  const surface = (z: number, x = 0) =>
+    d.height +
+    d.tilt * z -
+    d.dish * (1 - (z / (d.topDepth / 2)) ** 2) +
+    d.dishX * (x / (d.topWidth / 2)) ** 2;
+  const normal = (z: number, x: number) => {
     const dz = d.tilt + (8 * d.dish * z) / d.topDepth ** 2,
-      length = Math.hypot(1, dz);
-    return [0, 1 / length, -dz / length];
+      dx = (8 * d.dishX * x) / d.topWidth ** 2,
+      length = Math.hypot(dx, 1, dz);
+    return [dx === 0 ? 0 : -dx / length, 1 / length, -dz / length];
   };
   // Subdivide straight edges as well as corners: a long spacebar must not become a single giant triangle.
   const steps = [Math.ceil(d.topWidth / 2), Math.ceil(d.topDepth / 2)];
@@ -95,7 +111,7 @@ export function createKeyGeometry(
     w: number;
     depth: number;
     radius: number;
-    y: (z: number) => number;
+    y: (z: number, x: number) => number;
   };
   function build(rings: Ring[], top: boolean) {
     const p: number[] = [],
@@ -105,7 +121,7 @@ export function createKeyGeometry(
     const n = perimeter(rings[0].w, rings[0].depth, rings[0].radius).length;
     rings.forEach((r) =>
       perimeter(r.w, r.depth, r.radius).forEach(([x, z]) => {
-        const y = r.y(z);
+        const y = r.y(z, x);
         p.push(x, y, z);
         uv.push(x / d.topWidth + 0.5, 0.5 - z / d.topDepth);
         // Independent physical-scale grain coordinates, unaffected by legend UV or key width.
@@ -140,7 +156,7 @@ export function createKeyGeometry(
     // Analytic dish normals eliminate fan-shaped specular facets, and share the exact normal at the bevel seam.
     const start = top ? 0 : p.length / 3 - n;
     for (let i = start; i < p.length / 3; i++) {
-      const [x, y, z] = normal(p[i * 3 + 2]);
+      const [x, y, z] = normal(p[i * 3 + 2], p[i * 3]);
       normals.setXYZ(i, x, y, z);
     }
     g.computeBoundingBox();
@@ -154,7 +170,7 @@ export function createKeyGeometry(
       w: d.topWidth + 1.3,
       depth: d.topDepth + 1.3,
       radius: 1.8,
-      y: (z) => surface(z) - 1.1,
+      y: (z, x) => surface(z, x) - 1.1,
     },
   ];
   // Quadratic fillet rolls the sloping wall into the dished top over eight bands.
@@ -166,7 +182,7 @@ export function createKeyGeometry(
       w: d.topWidth + offset,
       depth: d.topDepth + offset,
       radius: 1.65 + 0.15 * (1 - t),
-      y: (z) => surface(z) - drop,
+      y: (z, x) => surface(z, x) - drop,
     });
   }
   const body = build(bodyRings, false);

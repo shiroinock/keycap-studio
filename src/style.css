@@ -1213,3 +1213,81 @@ dialog.export-dialog {
 .import-error {
   color: #a53925 !important;
 }
+
+.layout-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 0;
+}
+.layout-switcher label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+}
+.layout-switcher select {
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background: #fff;
+  color: #333;
+}
+.layout-switcher span {
+  font-size: 11px;
+  color: #777;
+}
+.kit-coverage {
+  margin: 16px 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 14px;
+}
+.kit-coverage summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+.kit-coverage p {
+  font-size: 12px;
+  color: #777;
+  line-height: 1.7;
+}
+.kit-table-scroll {
+  overflow: auto;
+  max-height: 360px;
+}
+.kit-coverage table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.kit-coverage th,
+.kit-coverage td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .layout-switcher {
+    display: block;
+  }
+  .layout-switcher label {
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+}
+.profile-info {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 12px;
+  line-height: 1.7;
+}
+.profile-info summary {
+  cursor: pointer;
+}
+.profile-info a {
+  color: #875838;
+}

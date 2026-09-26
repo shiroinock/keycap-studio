@@ -22,7 +22,7 @@ HHKB型はQMKの60_hhkb（7uスペース）で、PFU HHKB製品の再現では�
 
 ## 保存互換性
 
-ANSI 60%を選ぶと既存のschemaVersion 1形式で作り、既存ANSI案との比較を維持する。それ以外は安定したpreset IDとLayoutをschemaVersion 2の案へ埋め込む。後日のプリセット変更で保存済み形状が変わることはない。幾何情報を変更するときはpreset IDの版も更新する。
+従来のschemaVersion 1/2を読み込み、配列切り替え時にschemaVersion 3へ移行する。各配列は安定したpreset IDとLayoutとして案へ埋め込む。共通キーの編集はデザイン内で共有し、訪れた配列を保持する。後日のプリセット変更で保存済み形状が変わることはない。幾何情報を変更するときはpreset IDの版も更新する。
 
 ## 今後の追加
 
