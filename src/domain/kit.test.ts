@@ -118,3 +118,52 @@ it("validates kit geometry and preserves an intentionally empty kit", () => {
     parseLibrary(JSON.stringify({ schemaVersion: 3, studies: [bad] })),
   ).toThrow();
 });
+
+it("uses full-size width and fills the next row beside spanning keys", () => {
+  const seed = getKit(samples[0])[0];
+  const kit = [
+    {
+      ...seed,
+      id: "tall",
+      group: "extras" as const,
+      placement: undefined,
+      row: 1,
+      w: 1,
+      h: 2,
+    },
+    {
+      ...seed,
+      id: "short",
+      group: "extras" as const,
+      placement: undefined,
+      row: 1,
+      w: 1,
+      h: 1,
+    },
+    {
+      ...seed,
+      id: "next",
+      group: "extras" as const,
+      placement: undefined,
+      row: 2,
+      w: 1,
+      h: 1,
+    },
+    {
+      ...seed,
+      id: "third",
+      group: "extras" as const,
+      placement: undefined,
+      row: 3,
+      w: 1,
+      h: 1,
+    },
+  ];
+  const layout = kitSheet({ ...samples[0], kit }).study.layout!;
+  const [tall, short, next, third] = layout.keys;
+  expect(layout.width).toBeGreaterThanOrEqual(22.5 + 1.4);
+  expect(next.y - tall.y).toBeCloseTo(1);
+  expect(next.x).toBeCloseTo(short.x);
+  expect(third.x).toBeCloseTo(tall.x);
+  expect(third.y - tall.y).toBeCloseTo(2);
+});

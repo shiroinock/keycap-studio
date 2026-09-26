@@ -434,7 +434,10 @@ export default function KitEditor({
             study={sheet.study}
             bare
             annotations={sheet.labels}
-            aspect={1.2}
+            aspect={
+              (sheet.study.layout!.width * UNIT + PAD * 2) /
+              (sheet.study.layout!.height * UNIT + PAD * 2)
+            }
             settings={scene}
             onPose={(pose) => setScene((s) => ({ ...s, pose }))}
             onSelect={setSelected}

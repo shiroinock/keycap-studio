@@ -18,11 +18,21 @@ export function kitSheet(study: Study, filter: string = "all") {
   const keys: LayoutKey[] = [],
     overrides: Study["overrides"] = {},
     labels: SheetLabel[] = [];
+  const panels: {
+    group: string;
+    start: number;
+    end: number;
+    keys: LayoutKey[];
+    labels: SheetLabel[];
+  }[] = [];
   let y = 0,
-    width = 20;
+    width = 24.4; // 22.5u full-size keyboard plus row labels and outer margin.
   for (const group of Object.keys(kitGroups) as (keyof typeof kitGroups)[]) {
     const items = kit.filter((k) => k.group === group);
     if (!items.length) continue;
+    const start = y,
+      keyStart = keys.length,
+      labelStart = labels.length;
     labels.push({ x: 0, y, text: kitGroups[group], width: 6 });
     y += 0.9;
     const placed = items.every((k) => k.placement);
@@ -56,9 +66,8 @@ export function kitSheet(study: Study, filter: string = "all") {
           ),
         ),
       ].sort();
+      const occupied: LayoutKey[] = [];
       for (const row of rowNames) {
-        let x = 1.4,
-          bandHeight = 1;
         labels.push({ x: 0, y: y + 0.25, text: row, width: 1.2 });
         for (const k of items.filter(
           (k) =>
@@ -66,22 +75,75 @@ export function kitSheet(study: Study, filter: string = "all") {
               ? "Space"
               : rowName(k.row, study.profile ?? defaultProfile)) === row,
         )) {
-          if (x + k.w > 20) {
-            y += bandHeight + 0.35;
+          // A tall key reserves only its own columns on following rows.
+          // Keep the 1u row pitch so a 2u key visibly spans exactly two rows.
+          let x = 1.4;
+          while (true) {
+            const blocker = occupied.find(
+              (a) =>
+                x < a.x + a.w - 1e-6 &&
+                x + k.w > a.x + 1e-6 &&
+                y < a.y + a.h - 1e-6 &&
+                y + k.h > a.y + 1e-6,
+            );
+            if (blocker) {
+              x = blocker.x + blocker.w;
+              continue;
+            }
+            if (
+              x + k.w <=
+              (group === "numpad" ? Math.max(5.4, 1.4 + k.w) : width - 0.5) +
+                1e-6
+            )
+              break;
+            y += 1;
             x = 1.4;
-            bandHeight = 1;
             labels.push({ x: 0, y: y + 0.25, text: row, width: 1.2 });
           }
-          keys.push({ ...k, x, y, rotation: 0 });
-          x += k.w + 0.12;
-          bandHeight = Math.max(bandHeight, k.h);
+          const key = { ...k, x, y, rotation: 0 };
+          keys.push(key);
+          occupied.push(key);
         }
-        y += bandHeight + 0.45;
+        y += 1;
       }
+      y = Math.max(y, ...occupied.map((k) => k.y + k.h));
       y += 0.7;
     }
+    panels.push({
+      group,
+      start,
+      end: y,
+      keys: keys.slice(keyStart),
+      labels: labels.slice(labelStart),
+    });
     for (const k of items)
       overrides[k.id] = { ...kitArtwork(study, k), role: k.role };
+  }
+  const base = panels.find((p) => p.group === "base");
+  const numpad = panels.find((p) => p.group === "numpad");
+  if (base && numpad) {
+    const right = Math.max(...base.keys.map((k) => k.x + k.w)) + 0.6;
+    const padWidth = Math.max(...numpad.keys.map((k) => k.x + k.w));
+    if (
+      right + padWidth <= width - 0.5 &&
+      numpad.end - numpad.start <= base.end - base.start
+    ) {
+      const dy = base.start - numpad.start;
+      for (const k of numpad.keys) {
+        k.x += right;
+        k.y += dy;
+      }
+      for (const label of numpad.labels) {
+        label.x += right;
+        label.y += dy;
+      }
+      const height = numpad.end - numpad.start;
+      for (const p of panels.filter((p) => p.start >= numpad.end)) {
+        for (const k of p.keys) k.y -= height;
+        for (const label of p.labels) label.y -= height;
+      }
+      y -= height;
+    }
   }
   const layout = {
     id: "kit-sheet",
