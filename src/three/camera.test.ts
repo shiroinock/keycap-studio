@@ -24,13 +24,23 @@ it("fits all 61 keys and the case within the default photo and top-view frame", 
     for (const x of [-147, 147])
       for (const y of [-8.8, -0.8])
         for (const z of [-52, 52]) points.push(new Vector3(x, y, z));
+    // Inspect every vertex but aggregate bounds before asserting; per-vertex assertions
+    // dominate the runtime on small CI runners without improving the coverage.
+    let maxX = 0,
+      maxY = 0,
+      minZ = Infinity,
+      maxZ = -Infinity;
     for (const point of points) {
       point.project(cam);
-      expect(Math.abs(point.x)).toBeLessThan(0.98);
-      expect(Math.abs(point.y)).toBeLessThan(0.98);
-      expect(point.z).toBeGreaterThan(-1);
-      expect(point.z).toBeLessThan(1);
+      maxX = Math.max(maxX, Math.abs(point.x));
+      maxY = Math.max(maxY, Math.abs(point.y));
+      minZ = Math.min(minZ, point.z);
+      maxZ = Math.max(maxZ, point.z);
     }
+    expect(maxX).toBeLessThan(0.98);
+    expect(maxY).toBeLessThan(0.98);
+    expect(minZ).toBeGreaterThan(-1);
+    expect(maxZ).toBeLessThan(1);
   }
 });
 it("preserves the shared pose when configuring comparison cameras at different pixel sizes", () => {
