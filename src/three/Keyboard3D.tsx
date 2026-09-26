@@ -42,6 +42,7 @@ const Cap = memo(function Cap({
   study,
   roughness,
   reference,
+  neutral,
   grain,
   register,
   onFail,
@@ -51,6 +52,7 @@ const Cap = memo(function Cap({
   study: Study;
   roughness: number;
   reference: boolean;
+  neutral: boolean;
   grain: DataTexture;
   register: (id: string, ready: boolean) => void;
   onFail: () => void;
@@ -126,6 +128,12 @@ const Cap = memo(function Cap({
             toneMapped={false}
             fog={false}
           />
+        ) : neutral ? (
+          <meshLambertMaterial
+            color={data.color}
+            toneMapped={false}
+            fog={false}
+          />
         ) : (
           <meshPhysicalMaterial
             bumpMap={grain}
@@ -146,6 +154,14 @@ const Cap = memo(function Cap({
       >
         {reference ? (
           <meshBasicMaterial
+            key={texture?.uuid ?? "loading"}
+            color={texture ? "#ffffff" : data.color}
+            map={texture}
+            toneMapped={false}
+            fog={false}
+          />
+        ) : neutral ? (
+          <meshLambertMaterial
             key={texture?.uuid ?? "loading"}
             color={texture ? "#ffffff" : data.color}
             map={texture}
@@ -201,7 +217,7 @@ function Scene({
     [grain, caseGeometry],
   );
   useEffect(() => {
-    if (settings.lighting === "reference") {
+    if (["reference", "neutral"].includes(settings.lighting)) {
       scene.environment = null;
       invalidate();
       return;
@@ -310,21 +326,28 @@ function Scene({
   }, [readyCount, onReady, gl, scene, camera, invalidate]);
   const lighting = settings.lighting;
   const reference = lighting === "reference";
+  const neutral = lighting === "neutral";
   return (
     <>
       <color attach="background" args={["#e5e3df"]} />
       {!reference && (
         <>
-          <fog attach="fog" args={["#e5e3df", 650, 1800]} />
-          <hemisphereLight
-            intensity={0.12}
-            color="#e8efff"
-            groundColor="#47433d"
-          />
+          {!neutral && <fog attach="fog" args={["#e5e3df", 650, 1800]} />}
+          {neutral ? (
+            <ambientLight color="#ffffff" intensity={Math.PI * 0.55} />
+          ) : (
+            <hemisphereLight
+              intensity={0.12}
+              color="#e8efff"
+              groundColor="#47433d"
+            />
+          )}
           <directionalLight
             position={lighting === "raking" ? [-180, 75, 35] : [-110, 210, 140]}
-            intensity={lighting === "soft" ? 1.1 : 1.6}
-            color="#fff4e7"
+            intensity={
+              neutral ? Math.PI * 0.45 : lighting === "soft" ? 1.1 : 1.6
+            }
+            color={neutral ? "#ffffff" : "#fff4e7"}
             castShadow
             shadow-mapSize={[2048, 2048]}
             shadow-camera-left={-195}
@@ -347,6 +370,8 @@ function Scene({
       >
         {reference ? (
           <meshBasicMaterial color="#808080" toneMapped={false} fog={false} />
+        ) : neutral ? (
+          <meshLambertMaterial color="#808080" toneMapped={false} fog={false} />
         ) : (
           <meshStandardMaterial
             color="#363a3d"
@@ -363,6 +388,8 @@ function Scene({
         <planeGeometry args={[3000, 3000]} />
         {reference ? (
           <meshBasicMaterial color="#e5e3df" toneMapped={false} fog={false} />
+        ) : neutral ? (
+          <meshLambertMaterial color="#e5e3df" toneMapped={false} fog={false} />
         ) : (
           <meshStandardMaterial color="#e5e3df" roughness={0.95} />
         )}
@@ -376,6 +403,7 @@ function Scene({
           roughness={settings.material === "matte" ? 0.68 : 0.38}
           grain={grain}
           reference={reference}
+          neutral={neutral}
           register={register}
           onFail={onFail}
           onSelect={onSelect}
@@ -483,9 +511,11 @@ export default function Keyboard3D({
         </span>
         <span>
           {settings.projection === "perspective" ? "PHOTO" : "ORTHO"} ·{" "}
-          {settings.lighting === "reference"
-            ? "色確認 · 陰影なし"
-            : `${settings.lighting} / ${settings.material}`}
+          {settings.lighting === "neutral"
+            ? "ニュートラル · 弱い陰影"
+            : settings.lighting === "reference"
+              ? "色確認 · 陰影なし"
+              : `${settings.lighting} / ${settings.material}`}
         </span>
         {onExport && (
           <button

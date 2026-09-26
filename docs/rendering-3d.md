@@ -77,3 +77,5 @@ glTF/GLBは形状・UV・基本的なPBR材質を受け渡す候補。Three.js�
 `reference`ではキーをMeshBasicMaterial、toneMapped=false、fog=falseで描画する。環境マップ、照明、接地影は外し、色テクスチャのsRGB指定は維持する。通常の材質と色確認用材質を切り替え、元の粗さ設定を保持する。renderer全体の露出設定を書き換えないので通常照明に戻した際の状態漏れを防ぐ。
 
 2Dのキーにあった白11%のハイライトと黒9%の下端線、ホバー時の白い面を削除。選択・ホバーは枠線で示す。キーの塗りと文字には共通データの指定色だけを使う。
+
+`neutral`を初期照明に設定。Lambert材質・白色ambient 0.55π＋directional 0.45πで拡散陰影を描画し、toneMapped=false・fog=false・環境マップなしとする。反射と色調補正を加えず、形状とキー間の影を読むためのモード。`reference`の完全な陰影なしとは分ける。
