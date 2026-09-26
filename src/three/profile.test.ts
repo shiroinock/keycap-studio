@@ -45,6 +45,41 @@ describe("3D geometry and artwork", () => {
       geo.top.dispose();
     }
   });
+  it("joins the bevel and dish without position or normal seams, including long keys", () => {
+    for (const key of [
+      ansi60.keys[0],
+      ansi60.keys.find((k) => k.id === "enter")!,
+      ansi60.keys.find((k) => k.id === "space")!,
+    ]) {
+      const { body, top } = createKeyGeometry(key);
+      const tp = top.getAttribute("position"),
+        tn = top.getAttribute("normal"),
+        bp = body.getAttribute("position"),
+        bn = body.getAttribute("normal");
+      const ring = (tp.count - 1) / 20;
+      for (let i = 0; i < ring; i++)
+        for (let axis = 0; axis < 3; axis++) {
+          expect(bp.array[(bp.count - ring + i) * 3 + axis]).toBeCloseTo(
+            tp.array[i * 3 + axis],
+            5,
+          );
+          expect(bn.array[(bp.count - ring + i) * 3 + axis]).toBeCloseTo(
+            tn.array[i * 3 + axis],
+            5,
+          );
+        }
+      const buv = body.getAttribute("uv1"),
+        tuv = top.getAttribute("uv1");
+      for (let i = 0; i < ring; i++) {
+        expect(buv.getX(bp.count - ring + i)).toBeCloseTo(tuv.getX(i), 5);
+        expect(buv.getY(bp.count - ring + i)).toBeCloseTo(tuv.getY(i), 5);
+      }
+      // The analytic surface normal must not depend on the fan's triangle direction.
+      for (let i = 0; i < tp.count; i++) expect(tn.getX(i)).toBe(0);
+      body.dispose();
+      top.dispose();
+    }
+  });
   it("uses the same escaped Japanese legends and novelty artwork as SVG", () => {
     const study = structuredClone(samples[0]);
     study.overrides.enter = { main: "喫茶<&", sub: "夜の部", color: "#123456" };

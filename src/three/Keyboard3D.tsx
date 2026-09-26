@@ -14,7 +14,14 @@ import {
   SRGBColorSpace,
   OrthographicCamera,
   Vector2,
+  PerspectiveCamera,
+  DataTexture,
+  ACESFilmicToneMapping,
 } from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { configureCamera, PHOTO_FOV } from "./camera";
+import ContactShadow from "./ContactShadow";
+import { studioEnvironment, createGrainTexture } from "./studio";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { resolveKeys, type Study, type ResolvedKey } from "../domain/model";
 import { textureSource } from "./artwork";
@@ -34,6 +41,7 @@ const Cap = memo(function Cap({
   data,
   study,
   roughness,
+  grain,
   register,
   onFail,
   onSelect,
@@ -41,6 +49,7 @@ const Cap = memo(function Cap({
   data: ResolvedKey;
   study: Study;
   roughness: number;
+  grain: DataTexture;
   register: (id: string, ready: boolean) => void;
   onFail: () => void;
   onSelect?: Props["onSelect"];
@@ -105,14 +114,24 @@ const Cap = memo(function Cap({
       }}
     >
       <mesh geometry={geometry.body} castShadow receiveShadow>
-        <meshStandardMaterial
+        <meshPhysicalMaterial
+          bumpMap={grain}
+          bumpScale={roughness > 0.5 ? 0.018 : 0.008}
+          roughnessMap={grain}
+          ior={1.46}
+          envMapIntensity={0.65}
           color={data.color}
           roughness={roughness}
           metalness={0}
         />
       </mesh>
       <mesh geometry={geometry.top} castShadow receiveShadow>
-        <meshStandardMaterial
+        <meshPhysicalMaterial
+          bumpMap={grain}
+          bumpScale={roughness > 0.5 ? 0.018 : 0.008}
+          roughnessMap={grain}
+          ior={1.46}
+          envMapIntensity={0.65}
           key={texture?.uuid ?? "loading"}
           color={texture ? "#ffffff" : data.color}
           map={texture}
@@ -141,6 +160,27 @@ function Scene({
   onFail: () => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
+  const grain = useMemo(createGrainTexture, []);
+  const caseGeometry = useMemo(
+    () => new RoundedBoxGeometry(294, 8, 104, 4, 2.3),
+    [],
+  );
+  useEffect(
+    () => () => {
+      grain.dispose();
+      caseGeometry.dispose();
+    },
+    [grain, caseGeometry],
+  );
+  useEffect(() => {
+    const environment = studioEnvironment(gl, settings.lighting);
+    scene.environment = environment.texture;
+    invalidate();
+    return () => {
+      scene.environment = null;
+      environment.dispose();
+    };
+  }, [gl, scene, settings.lighting, invalidate]);
   const controls = useRef<OrbitControls | null>(null);
   const poseRef = useRef(onPose);
   poseRef.current = onPose;
@@ -162,6 +202,8 @@ function Scene({
     control.enableDamping = false;
     control.minPolarAngle = 0.001;
     control.maxPolarAngle = Math.PI * 0.46;
+    control.minDistance = 170;
+    control.maxDistance = 620;
     control.minZoom = 0.65;
     control.maxZoom = 2.5;
     control.target.set(0, 0, 0);
@@ -186,19 +228,11 @@ function Scene({
     };
   }, [camera, gl, invalidate, onFail]);
   useEffect(() => {
-    const cam = camera as OrthographicCamera;
-    const halfHeight = 90,
-      aspect = size.width / size.height;
-    cam.left = -halfHeight * aspect;
-    cam.right = halfHeight * aspect;
-    cam.top = halfHeight;
-    cam.bottom = -halfHeight;
-    cam.near = 0.1;
-    cam.far = 1500;
-    cam.position.set(...settings.pose.position);
-    cam.zoom = settings.pose.zoom;
-    cam.lookAt(0, 0, 0);
-    cam.updateProjectionMatrix();
+    configureCamera(
+      camera as OrthographicCamera | PerspectiveCamera,
+      settings.pose,
+      size.width / size.height,
+    );
     // Do not call controls.update here: it emits change and would feed other views back into this one.
     invalidate();
   }, [camera, size, settings.pose, invalidate]);
@@ -244,40 +278,53 @@ function Scene({
   const lighting = settings.lighting;
   return (
     <>
-      <color attach="background" args={["#eeeeec"]} />
-      <ambientLight intensity={lighting === "soft" ? 1.2 : 0.65} />
+      <color attach="background" args={["#e5e3df"]} />
+      <fog attach="fog" args={["#e5e3df", 650, 1800]} />
+      <hemisphereLight intensity={0.12} color="#e8efff" groundColor="#47433d" />
       <directionalLight
-        position={lighting === "raking" ? [-180, 55, 15] : [-100, 200, -80]}
-        intensity={lighting === "soft" ? 1.5 : 2}
+        position={lighting === "raking" ? [-180, 75, 35] : [-110, 210, 140]}
+        intensity={lighting === "soft" ? 1.1 : 1.6}
+        color="#fff4e7"
         castShadow
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-left={-190}
-        shadow-camera-right={190}
-        shadow-camera-top={110}
-        shadow-camera-bottom={-110}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-195}
+        shadow-camera-right={195}
+        shadow-camera-top={125}
+        shadow-camera-bottom={-125}
+        shadow-camera-near={1}
         shadow-camera-far={650}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.12}
+        shadow-bias={-0.00012}
+        shadow-normalBias={0.08}
+        shadow-radius={lighting === "soft" ? 5 : 3}
       />
-      <directionalLight position={[120, 80, 150]} intensity={0.5} />
-      <mesh position={[0, -4, 0]} receiveShadow>
-        <boxGeometry args={[293, 7, 103]} />
-        <meshStandardMaterial color="#92928f" roughness={0.8} />
+      <mesh
+        position={[0, -4.8, 0]}
+        geometry={caseGeometry}
+        castShadow
+        receiveShadow
+      >
+        <meshStandardMaterial
+          color="#363a3d"
+          metalness={0.25}
+          roughness={0.42}
+        />
       </mesh>
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -7.6, 0]}
+        position={[0, -8.85, 0]}
         receiveShadow
       >
-        <planeGeometry args={[1000, 1000]} />
-        <meshStandardMaterial color="#eeeeec" roughness={1} />
+        <planeGeometry args={[3000, 3000]} />
+        <meshStandardMaterial color="#e5e3df" roughness={0.95} />
       </mesh>
+      <ContactShadow />
       {keys.map((key) => (
         <Cap
           key={key.id}
           data={key}
           study={study}
-          roughness={settings.material === "matte" ? 0.68 : 0.28}
+          roughness={settings.material === "matte" ? 0.68 : 0.38}
+          grain={grain}
           register={register}
           onFail={onFail}
           onSelect={onSelect}
@@ -343,17 +390,23 @@ export default function Keyboard3D({
         ) : (
           <Boundary fallback={fallback} onFail={fail}>
             <Canvas
-              orthographic
+              key={settings.projection}
+              orthographic={settings.projection === "orthographic"}
               shadows="percentage"
               frameloop="demand"
               dpr={[1, 1.5]}
               camera={{
                 position: [130, 240, 260],
                 zoom: 1,
+                fov: PHOTO_FOV,
                 near: 0.1,
                 far: 1500,
               }}
               fallback={fallback}
+              onCreated={({ gl }) => {
+                gl.toneMapping = ACESFilmicToneMapping;
+                gl.toneMappingExposure = 0.9;
+              }}
               gl={{
                 antialias: true,
                 alpha: false,
@@ -378,6 +431,7 @@ export default function Keyboard3D({
           {PROFILE_NAME} · {ready}/61 KEYS
         </span>
         <span>
+          {settings.projection === "perspective" ? "PHOTO" : "ORTHO"} ·{" "}
           {settings.lighting} / {settings.material}
         </span>
         {onExport && (

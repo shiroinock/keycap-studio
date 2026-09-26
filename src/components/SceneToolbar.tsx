@@ -22,10 +22,22 @@ export default function SceneToolbar({
       </div>
       {mode === "3d" && (
         <>
-          <button onClick={() => onSettings({ ...settings, pose: TOP })}>
+          <button
+            onClick={() =>
+              onSettings({ ...settings, pose: TOP, projection: "orthographic" })
+            }
+          >
             上面
           </button>
-          <button onClick={() => onSettings({ ...settings, pose: ANGLED })}>
+          <button
+            onClick={() =>
+              onSettings({
+                ...settings,
+                pose: ANGLED,
+                projection: "perspective",
+              })
+            }
+          >
             斜め
           </button>
           <button
@@ -56,6 +68,21 @@ export default function SceneToolbar({
           >
             ＋
           </button>
+          <label>
+            カメラ
+            <select
+              value={settings.projection}
+              onChange={(e) =>
+                onSettings({
+                  ...settings,
+                  projection: e.target.value as SceneSettings["projection"],
+                })
+              }
+            >
+              <option value="perspective">写真</option>
+              <option value="orthographic">平行投影</option>
+            </select>
+          </label>
           <label>
             照明
             <select
