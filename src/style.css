@@ -1453,3 +1453,35 @@ dialog.export-dialog {
   background: #333;
   color: white;
 }
+
+.variant-picker {
+  margin: 14px 0;
+}
+.variant-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.variant-options button {
+  display: grid;
+  gap: 5px;
+  padding: 5px;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.variant-options button[aria-pressed="true"] {
+  border-color: #ab744f;
+}
+.variant-swatch {
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  height: 42px;
+  padding: 4px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+}

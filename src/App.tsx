@@ -1,3 +1,4 @@
+import KitVariantPicker from "./components/KitVariantPicker";
 import KitEditor from "./components/KitEditor";
 import KitCoverage from "./components/KitCoverage";
 import { profiles, profileIds, defaultProfile } from "./domain/profiles";
@@ -29,6 +30,7 @@ import {
   roles,
   roleLabels,
   resolveKeys,
+  compatibleKitKeys,
   duplicateStudy,
   mergeLibraries,
   parseLibrary,
@@ -126,7 +128,10 @@ export default function App() {
       projection: "perspective",
     }));
   }, [layoutKey]);
-  const override = active.overrides[selected] ?? {};
+  const selectedVariant = compatibleKitKeys(active, selected).find(
+    (k) => k.id === active.variantSelections?.[layout.id]?.[selected],
+  );
+  const override = selectedVariant?.artwork ?? active.overrides[selected] ?? {};
   useEffect(() => {
     if (blocked) return;
     setSaveState("保存中…");
@@ -164,13 +169,33 @@ export default function App() {
     );
   }
   function keyUpdate(patch: KeyOverride) {
-    update((s) => ({
-      ...s,
-      overrides: {
-        ...s.overrides,
-        [selected]: { ...s.overrides[selected], ...patch },
-      },
-    }));
+    update((s) => {
+      const chosen = compatibleKitKeys(s, selected).find(
+        (k) => k.id === s.variantSelections?.[getLayout(s).id]?.[selected],
+      );
+      if (chosen) {
+        const { role, ...artwork } = patch;
+        return {
+          ...s,
+          kit: s.kit!.map((k) =>
+            k.id === chosen.id
+              ? {
+                  ...k,
+                  role: role ?? k.role,
+                  artwork: { ...k.artwork, ...artwork },
+                }
+              : k,
+          ),
+        };
+      }
+      return {
+        ...s,
+        overrides: {
+          ...s.overrides,
+          [selected]: { ...s.overrides[selected], ...patch },
+        },
+      };
+    });
   }
   function add(copy: boolean) {
     if (studies.length >= 200) {
@@ -184,6 +209,7 @@ export default function App() {
       next.keywords = "";
       next.overrides = {};
       next.kit = undefined;
+      next.variantSelections = undefined;
       next.designKeys = next.schemaVersion === 3 ? {} : undefined;
       next.layouts = next.schemaVersion === 3 ? [getLayout(next)] : undefined;
     }
@@ -761,6 +787,11 @@ export default function App() {
                     ))}
                   </select>
                 </label>
+                <KitVariantPicker
+                  study={active}
+                  keyId={selected}
+                  onChange={(next) => update(() => next)}
+                />
                 <div className="two-fields">
                   <label>
                     メイン文字
@@ -839,6 +870,15 @@ export default function App() {
                     disabled={!Object.keys(override).length}
                     onClick={() =>
                       update((s) => {
+                        if (selectedVariant)
+                          return {
+                            ...s,
+                            kit: s.kit!.map((k) =>
+                              k.id === selectedVariant.id
+                                ? { ...k, artwork: undefined }
+                                : k,
+                            ),
+                          };
                         const overrides = { ...s.overrides };
                         delete overrides[selected];
                         return { ...s, overrides };

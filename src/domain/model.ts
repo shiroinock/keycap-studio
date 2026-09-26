@@ -47,6 +47,12 @@ export const studySchema = z
       return typeof value === "string" ? (legacy[value] ?? value) : value;
     }, z.enum(profileIds).optional()),
     kit: kitSchema.optional(),
+    variantSelections: z
+      .record(
+        z.string().min(1).max(100),
+        z.record(z.string().min(1).max(100), z.string().min(1).max(100)),
+      )
+      .optional(),
     designKeys: z.record(z.string(), overrideSchema).optional(),
     layouts: z.array(layoutSchema).max(40).optional(),
     palette: z.object({ base: pair, modifier: pair, accent: pair }).strict(),
@@ -119,24 +125,47 @@ export function getLayout(study: Study): Layout {
 export function sameLayout(a: Study, b: Study): boolean {
   return layoutSignature(getLayout(a)) === layoutSignature(getLayout(b));
 }
-export function resolveKeys(study: Study): ResolvedKey[] {
+export function compatibleKitKeys(study: Study, keyId: string) {
   const layout = getLayout(study),
-    identities = designKeyIds(layout);
+    k = layout.keys.find((k) => k.id === keyId);
+  if (!k) return [];
+  const identity = designKeyIds(layout).get(k.id);
+  const shape = k.shape ?? (k.id === "space" ? "space" : "standard");
+  const profile = study.profile ?? defaultProfile;
+  const row = profileRowIndex(k, layout, profile);
+  return (study.kit ?? []).filter(
+    (a) =>
+      a.identity === identity &&
+      a.w === k.w &&
+      a.h === k.h &&
+      a.shape === shape &&
+      (shape === "space" || rowName(a.row, profile) === rowName(row, profile)),
+  );
+}
+export function selectKitVariant(
+  study: Study,
+  keyId: string,
+  kitId: string | null,
+): Study {
+  if (kitId && !compatibleKitKeys(study, keyId).some((k) => k.id === kitId))
+    return study;
+  const selections = structuredClone(study.variantSelections ?? {});
+  const layoutId = getLayout(study).id;
+  selections[layoutId] ??= {};
+  if (kitId) selections[layoutId][keyId] = kitId;
+  else delete selections[layoutId][keyId];
+  return { ...study, variantSelections: selections };
+}
+export function resolveKeys(study: Study): ResolvedKey[] {
+  const layout = getLayout(study);
   return layout.keys.map((k) => {
     const o = study.overrides[k.id] ?? {};
-    const shape = k.shape ?? (k.id === "space" ? "space" : "standard");
-    const profile = study.profile ?? defaultProfile;
-    const row = profileRowIndex(k, layout, profile);
-    const owned = study.kit?.find(
-      (a) =>
-        a.identity === identities.get(k.id) &&
-        a.w === k.w &&
-        a.h === k.h &&
-        a.shape === shape &&
-        (shape === "space" ||
-          rowName(a.row, profile) === rowName(row, profile)),
+    const candidates = compatibleKitKeys(study, k.id);
+    const explicit = candidates.find(
+      (a) => a.id === study.variantSelections?.[layout.id]?.[k.id],
     );
-    const role = o.role ?? owned?.role ?? k.role;
+    const owned = explicit ?? candidates[0];
+    const role = explicit?.role ?? o.role ?? owned?.role ?? k.role;
     const pair = study.palette[role];
     return {
       ...k,
