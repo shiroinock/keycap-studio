@@ -1,0 +1,265 @@
+import { ansi60, validateLayout, type Layout, type LayoutKey } from "./layout";
+import geometry from "./preset-geometry.json";
+export interface LayoutPreset {
+  layout: Layout;
+  group: string;
+  note: string;
+}
+const numberRow = ["`", ..."1234567890", "-", "=", "Backspace"];
+const qRow = ["Tab", ..."QWERTYUIOP", "[", "]", "\\"];
+const aRow = ["Caps", ..."ASDFGHJKL", ";", "'", "Enter"];
+const zRow = ["Shift", ..."ZXCVBNM", ",", ".", "/", "Shift"];
+const bottom = [
+  "Ctrl",
+  "Super",
+  "Alt",
+  "Space",
+  "Alt",
+  "Super",
+  "Menu",
+  "Ctrl",
+];
+const compactBottom = [
+  "Ctrl",
+  "Super",
+  "Alt",
+  "Space",
+  "Alt",
+  "Fn",
+  "Ctrl",
+  "←",
+  "↓",
+  "→",
+];
+const fn = Array.from({ length: 12 }, (_, i) => `F${i + 1}`);
+const pad = [
+  ["Num", "/", "*", "-"],
+  ["7", "8", "9", "+"],
+  ["4", "5", "6"],
+  ["1", "2", "3", "Enter"],
+  ["0", "."],
+];
+// Labels are design defaults, not firmware mappings.
+const legends: Record<keyof typeof geometry, string[][]> = {
+  "60_hhkb": [
+    ["Esc", ..."1234567890", "-", "=", "\\", "`"],
+    [...qRow.slice(0, -1), "Delete"],
+    ["Ctrl", ...aRow.slice(1)],
+    [...zRow.slice(0, -1), "Shift", "Fn"],
+    ["Super", "Alt", "Space", "Alt", "Super"],
+  ],
+  "65_ansi": [
+    ["Esc", ...numberRow.slice(1), "Home"],
+    [...qRow, "PgUp"],
+    [...aRow, "PgDn"],
+    [...zRow.slice(0, -1), "Shift", "↑", "End"],
+    compactBottom,
+  ],
+  "75_ansi": [
+    ["Esc", ...fn, "Print", "Scroll", "Pause"],
+    [...numberRow, "Delete"],
+    [...qRow, "Home"],
+    [...aRow, "PgUp"],
+    [...zRow.slice(0, -1), "Shift", "↑", "PgDn"],
+    compactBottom,
+  ],
+  "96_ansi": [
+    ["Esc", ...fn, "Print", "Scroll", "Pause", "Insert", "Home", "PgUp"],
+    [...numberRow, "Num", "/", "*", "-"],
+    [...qRow, ...pad[1]],
+    [...aRow, ...pad[2]],
+    [...zRow.slice(0, -1), "Shift", "↑", ...pad[3]],
+    [
+      "Ctrl",
+      "Super",
+      "Alt",
+      "Space",
+      "Alt",
+      "Fn",
+      "Ctrl",
+      "←",
+      "↓",
+      "→",
+      "0",
+      ".",
+    ],
+  ],
+  tkl_ansi: [
+    ["Esc", ...fn, "Print", "Scroll", "Pause"],
+    [...numberRow, "Insert", "Home", "PgUp"],
+    [...qRow, "Delete", "End", "PgDn"],
+    aRow,
+    [...zRow, "↑"],
+    [...bottom, "←", "↓", "→"],
+  ],
+  fullsize_ansi: [
+    ["Esc", ...fn, "Print", "Scroll", "Pause"],
+    [...numberRow, "Insert", "Home", "PgUp", ...pad[0]],
+    [...qRow, "Delete", "End", "PgDn", ...pad[1]],
+    [...aRow, ...pad[2]],
+    [...zRow, "↑", ...pad[3]],
+    [...bottom, "←", "↓", "→", ...pad[4]],
+  ],
+  numpad_5x4: pad,
+};
+function makeKey(
+  label: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  index: number,
+  row: number,
+): LayoutKey {
+  return {
+    id: `key-${String(index + 1).padStart(3, "0")}`,
+    label: label === "Space" ? "" : label,
+    sub: "",
+    x,
+    y,
+    w,
+    h,
+    rotation: 0,
+    row,
+    role: /^(Esc|Enter)$/.test(label)
+      ? "accent"
+      : label.length === 1 && !"←↓↑→".includes(label)
+        ? "base"
+        : "modifier",
+    shape: label === "Space" && w >= 3 ? "space" : "standard",
+  };
+}
+function makePreset(
+  source: keyof typeof geometry,
+  name: string,
+  group: string,
+  note: string,
+): LayoutPreset {
+  const coords = [...geometry[source]].sort(
+      (a, b) => a[1] - b[1] || a[0] - b[0],
+    ),
+    labels = legends[source].flat();
+  if (coords.length !== labels.length)
+    throw new Error(`Preset labels: ${source}`);
+  const ys = [...new Set(coords.map((k) => k[1]))].sort((a, b) => a - b);
+  const hasFunctionRow = ys.length === 6;
+  const keys = coords.map(([x, y, w, h], i) =>
+    makeKey(
+      labels[i],
+      x,
+      y,
+      w,
+      h,
+      i,
+      Math.max(0, Math.min(4, ys.indexOf(y) - (hasFunctionRow ? 1 : 0))),
+    ),
+  );
+  const layout: Layout = {
+    id: `preset-${source}-v1`,
+    version: 1,
+    name,
+    pitchMm: 19.05,
+    width: Math.max(...keys.map((k) => k.x + k.w)),
+    height: Math.max(...keys.map((k) => k.y + k.h)),
+    keys,
+  };
+  validateLayout(layout);
+  return { layout, group, note };
+}
+function grid(rows: number, columns: number): LayoutPreset {
+  const labels =
+    rows === 4
+      ? [
+          ["Esc", ..."QWERTYUIOP", "Backspace"],
+          ["Tab", ..."ASDFGHJKL", "'", "Enter"],
+          ["Shift", ..."ZXCVBNM", ",", ".", "/", "Shift"],
+          [
+            "Ctrl",
+            "Super",
+            "Alt",
+            "Fn",
+            "Lower",
+            "Space",
+            "Space",
+            "Raise",
+            "←",
+            "↓",
+            "↑",
+            "→",
+          ],
+        ].flat()
+      : [];
+  const layout: Layout = {
+    id: `preset-grid-${rows}x${columns}-v1`,
+    version: 1,
+    name: `格子 ${rows}×${columns}`,
+    pitchMm: 19.05,
+    width: columns,
+    height: rows,
+    keys: Array.from({ length: rows * columns }, (_, i) =>
+      makeKey(
+        labels[i] ?? String(i + 1),
+        i % columns,
+        Math.floor(i / columns),
+        1,
+        1,
+        i,
+        Math.min(4, Math.floor(i / columns)),
+      ),
+    ),
+  };
+  validateLayout(layout);
+  return { layout, group: "格子配列", note: "全キー1u。刻印は編集できます。" };
+}
+export const layoutPresets: LayoutPreset[] = [
+  {
+    layout: ansi60,
+    group: "スタンダード",
+    note: "61キー・6.25uスペース。既存のANSI 60%と同じ配列。",
+  },
+  makePreset(
+    "65_ansi",
+    "ANSI 65%",
+    "スタンダード",
+    "68キー・6.25uスペース・隙間なし。",
+  ),
+  makePreset(
+    "75_ansi",
+    "ANSI 75%",
+    "スタンダード",
+    "84キー・6.25uスペース・F列あり・隙間なし。",
+  ),
+  makePreset(
+    "tkl_ansi",
+    "ANSI TKL",
+    "スタンダード",
+    "87キー・6.25uスペース・独立した矢印とナビゲーション。",
+  ),
+  makePreset(
+    "96_ansi",
+    "ANSI 96%",
+    "スタンダード",
+    "100キー・6.25uスペース・テンキー一体型。",
+  ),
+  makePreset(
+    "fullsize_ansi",
+    "ANSI フルサイズ",
+    "スタンダード",
+    "104キー・6.25uスペース・独立したテンキー。",
+  ),
+  makePreset(
+    "60_hhkb",
+    "HHKB型 7u",
+    "コンパクト",
+    "60キー・7uスペース・両端ブロッカー。HHKB製品の6u配列とは異なります。",
+  ),
+  makePreset(
+    "numpad_5x4",
+    "テンキー",
+    "コンパクト",
+    "17キー・2uの0キー・縦長の＋とEnter。",
+  ),
+  grid(4, 12),
+  grid(5, 12),
+  grid(10, 10),
+];

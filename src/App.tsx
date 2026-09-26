@@ -12,6 +12,7 @@ import SceneToolbar from "./components/SceneToolbar";
 import { DEFAULT_SCENE, ANGLED, type CameraPose } from "./three/settings";
 import type { Capture3D } from "./three/Keyboard3D";
 const Keyboard3D = lazy(() => import("./three/Keyboard3D"));
+import PresetDialog from "./components/PresetDialog";
 import KLEImportDialog from "./components/KLEImportDialog";
 import ImportDialog from "./components/ImportDialog";
 import HexInput from "./components/HexInput";
@@ -89,6 +90,7 @@ export default function App() {
   const [pngWidth, setPngWidth] = useState(2844);
   const [exporting, setExporting] = useState(false);
   const [kleOpen, setKleOpen] = useState(false);
+  const [presetOpen, setPresetOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<Study[] | null>(null);
   const [artifact, setArtifact] = useState<ExportArtifact | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
@@ -190,9 +192,9 @@ export default function App() {
     }
     const next: Study = {
       ...duplicateStudy(active),
-      schemaVersion: 2,
+      schemaVersion: layout.id === "ansi60" ? 1 : 2,
       layoutId: layout.id,
-      layout: structuredClone(layout),
+      layout: layout.id === "ansi60" ? undefined : structuredClone(layout),
       name: layout.name,
       concept: "",
       keywords: "",
@@ -203,6 +205,7 @@ export default function App() {
     setSelected(layout.keys[0].id);
     setView("edit");
     setKleOpen(false);
+    setPresetOpen(false);
     setNotice(`${layout.keys.length}キーの配列で案を作成しました`);
   }
   async function exportImage(kind: "svg" | "png") {
@@ -279,6 +282,9 @@ export default function App() {
         </div>
         <button className="new-study" onClick={() => add(false)}>
           ＋ 新しいスタディ
+        </button>
+        <button className="import-layout" onClick={() => setPresetOpen(true)}>
+          ＋ 配列プリセット
         </button>
         <button className="import-layout" onClick={() => setKleOpen(true)}>
           ＋ KLE配列を読み込む
@@ -903,6 +909,13 @@ export default function App() {
           </span>
         </footer>
       </main>
+      {presetOpen && (
+        <PresetDialog
+          template={active}
+          onCancel={() => setPresetOpen(false)}
+          onCreate={importLayout}
+        />
+      )}
       {kleOpen && (
         <KLEImportDialog
           template={active}
