@@ -82,7 +82,6 @@ export default function App() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [blocked, setBlocked] = useState(Boolean(boot.error));
   const [storageError, setStorageError] = useState(boot.error);
-  const [saveState, setSaveState] = useState("保存中…");
   const [deleted, setDeleted] = useState<DeletedStudy[]>([]);
   const [notice, setNotice] = useState("");
   const [pngWidth, setPngWidth] = useState(2844);
@@ -105,14 +104,11 @@ export default function App() {
   }, [layoutKey]);
   useEffect(() => {
     if (blocked) return;
-    setSaveState("保存中…");
     const persist = () => {
       try {
         saveLibrary(localStorage, studies);
-        setSaveState("このブラウザに保存済み");
         setStorageError("");
       } catch {
-        setSaveState("未保存");
         setStorageError(
           "保存できませんでした。容量やブラウザ設定を確認し、JSONでバックアップしてください。",
         );
@@ -364,12 +360,6 @@ export default function App() {
         </div>
       </aside>
       <main>
-        <header className="topbar">
-          <div className={`save-status ${storageError ? "error" : ""}`}>
-            <span className="live-dot" />
-            {blocked ? "自動保存停止中" : saveState}
-          </div>
-        </header>
         {storageError && (
           <div className="storage-warning" role="alert">
             <p>{storageError}</p>
