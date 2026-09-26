@@ -1,5 +1,13 @@
+import HexInput from "./HexInput";
 import LayoutCoverage from "./LayoutCoverage";
-import { enterClipPath } from "../domain/key-shape";
+import KitSheet2D from "./KitSheet2D";
+import {
+  patchKitSelection,
+  rangeSelection,
+  sheetOrder,
+} from "../domain/kit-selection";
+import { layoutPresets } from "../domain/presets";
+import { kitSignature } from "../domain/kit";
 import { lazy, Suspense, useMemo, useState } from "react";
 import type { Study } from "../domain/model";
 import {
@@ -38,8 +46,22 @@ export default function KitEditor({
     pose: TOP,
     projection: "orthographic" as const,
   } as typeof DEFAULT_SCENE);
-  const [selected, setSelected] = useState<string | null>(null),
-    [error, setError] = useState(""),
+  const [selection, setSelection] = useState<string[]>([]);
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const selected = selection.filter((id) => kit.some((k) => k.id === id));
+  const setSelected = (id: string | null) => {
+    setSelection(id ? [id] : []);
+    setAnchor(id);
+  };
+  const [bulkColor, setBulkColor] = useState("#b76b46");
+  const [bulkInk, setBulkInk] = useState("#ffffff");
+  const [bulkGroup, setBulkGroup] = useState<KitKey["group"]>("extras");
+  const [fields, setFields] = useState({
+    color: false,
+    ink: false,
+    group: false,
+  });
+  const [error, setError] = useState(""),
     [undo, setUndo] = useState<{ kit: KitKey[]; targets?: string[] } | null>(
       null,
     );
@@ -47,7 +69,8 @@ export default function KitEditor({
   const [view, setView] = useState<"sheet" | "coverage">("sheet");
   const sheet = useMemo(() => kitSheet(study, filter), [study, filter]);
   const svg = useMemo(() => renderKitSvg(study, filter), [study, filter]);
-  const entry = kit.find((k) => k.id === selected),
+  const entry =
+      selected.length === 1 ? kit.find((k) => k.id === selected[0]) : undefined,
     art = entry ? kitArtwork(study, entry) : null;
   const choices = useMemo(() => {
     const all = availableLayouts(study).flatMap((l) => layoutKit(study, l));
@@ -97,10 +120,27 @@ export default function KitEditor({
       setError((e as Error).message);
     }
   }
-  function selectSheetKey(id: string) {
+  function selectSheetKey(id: string, shift = false, toggle = false) {
     const sourceId = sheet.sourceIds[id];
-    if (sourceId) setSelected(sourceId);
-    else {
+    if (sourceId) {
+      if (shift)
+        setSelection(
+          rangeSelection(
+            sheetOrder(sheet.study.layout!.keys, sheet.sourceIds),
+            anchor,
+            sourceId,
+          ),
+        );
+      else if (toggle) {
+        setSelection((ids) =>
+          ids.includes(sourceId)
+            ? ids.filter((id) => id !== sourceId)
+            : [...ids, sourceId],
+        );
+        setAnchor(sourceId);
+      } else setSelected(sourceId);
+    } else {
+      if (shift || toggle) return;
       const key = sheet.kit.find((k) => k.id === id);
       if (key)
         add([
@@ -124,7 +164,13 @@ export default function KitEditor({
       <div className="kit-actions">
         <label>
           表示キット{" "}
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <select
+            value={filter}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setSelected(null);
+            }}
+          >
             <option value="all">収録キー一覧（すべて）</option>
             {groups.map(([id, name]) => (
               <option key={id} value={id}>
@@ -454,6 +500,175 @@ export default function KitEditor({
             ANSIを土台に、JISで用途・R・寸法・形状が異なるキーだけを実配列の位置に揃えて下へ表示します。グレーの未収録キーはクリックで追加できます。
           </p>
         )}
+        <div className="kit-bulk-select">
+          <label>
+            まとめて選択
+            <select
+              value=""
+              onChange={(e) => {
+                const value = e.target.value;
+                const visible = new Set(Object.values(sheet.sourceIds));
+                let matches = kit.filter((k) => visible.has(k.id));
+                if (value === "modifier")
+                  matches = matches.filter((k) => k.role === "modifier");
+                else if (value.startsWith("row:"))
+                  matches = matches.filter(
+                    (k) => rowName(k.row, profile) === value.slice(4),
+                  );
+                else if (value.startsWith("group:"))
+                  matches = matches.filter((k) => k.group === value.slice(6));
+                else if (value === "jis") {
+                  const ansi = layoutKit(
+                    study,
+                    layoutPresets.find(
+                      (p) => p.layout.id === "preset-fullsize_ansi-v1",
+                    )!.layout,
+                  );
+                  const jis = layoutKit(
+                    study,
+                    layoutPresets.find(
+                      (p) => p.layout.id === "preset-fullsize_jis-v1",
+                    )!.layout,
+                  );
+                  const shared = new Set(
+                    ansi.map((k) => kitSignature(k, study)),
+                  );
+                  const difference = new Set(
+                    jis
+                      .map((k) => kitSignature(k, study))
+                      .filter((sig) => !shared.has(sig)),
+                  );
+                  matches = matches.filter((k) =>
+                    difference.has(kitSignature(k, study)),
+                  );
+                }
+                setSelection(matches.map((k) => k.id));
+                setAnchor(matches[0]?.id ?? null);
+                setMode("2d");
+              }}
+            >
+              <option value="">選択条件</option>
+              <option value="all">表示中の収録キーすべて</option>
+              <option value="modifier">修飾キー</option>
+              <option value="jis">JIS追加キー</option>
+              {rowOptions.map(([name]) => (
+                <option key={name} value={"row:" + name}>
+                  {name}
+                </option>
+              ))}
+              {groups.map(([id, name]) => (
+                <option key={id} value={"group:" + id}>
+                  {name}キット
+                </option>
+              ))}
+            </select>
+          </label>
+          <strong aria-live="polite">{selected.length}種類を選択</strong>
+          <button disabled={!selected.length} onClick={() => setSelected(null)}>
+            選択を解除
+          </button>
+          <p>
+            2DでShift＋クリック：連続選択 · ⌘ / Ctrl＋クリック：追加・解除 ·
+            ドラッグ：範囲選択
+          </p>
+        </div>
+        {selected.length > 0 && (
+          <form
+            className="kit-bulk-edit"
+            onSubmit={(e) => {
+              e.preventDefault();
+              try {
+                commit(
+                  patchKitSelection(kit, selected, {
+                    ...(fields.color ? { color: bulkColor } : {}),
+                    ...(fields.ink ? { ink: bulkInk } : {}),
+                    ...(fields.group ? { group: bulkGroup } : {}),
+                  }),
+                );
+              } catch (e) {
+                setError((e as Error).message);
+              }
+            }}
+          >
+            <h3>選択した{selected.length}種類を一括編集</h3>
+            <label>
+              <input
+                type="checkbox"
+                checked={fields.color}
+                onChange={(e) =>
+                  setFields({ ...fields, color: e.target.checked })
+                }
+              />
+              キー色を変更
+            </label>
+            <input
+              aria-label="一括キー色"
+              type="color"
+              disabled={!fields.color}
+              value={bulkColor}
+              onChange={(e) => setBulkColor(e.target.value)}
+            />
+            {fields.color && (
+              <HexInput
+                label="一括キー色HEX"
+                value={bulkColor}
+                onChange={setBulkColor}
+              />
+            )}
+            <label>
+              <input
+                type="checkbox"
+                checked={fields.ink}
+                onChange={(e) =>
+                  setFields({ ...fields, ink: e.target.checked })
+                }
+              />
+              刻印色を変更
+            </label>
+            <input
+              aria-label="一括刻印色"
+              type="color"
+              disabled={!fields.ink}
+              value={bulkInk}
+              onChange={(e) => setBulkInk(e.target.value)}
+            />
+            {fields.ink && (
+              <HexInput
+                label="一括刻印色HEX"
+                value={bulkInk}
+                onChange={setBulkInk}
+              />
+            )}
+            <label>
+              <input
+                type="checkbox"
+                checked={fields.group}
+                onChange={(e) =>
+                  setFields({ ...fields, group: e.target.checked })
+                }
+              />
+              所属キットを変更
+            </label>
+            <select
+              aria-label="一括所属キット"
+              disabled={!fields.group}
+              value={bulkGroup}
+              onChange={(e) => setBulkGroup(e.target.value as KitKey["group"])}
+            >
+              {groups.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              disabled={!Object.values(fields).some(Boolean)}
+            >
+              選択したキーに適用
+            </button>
+          </form>
+        )}
         <SceneToolbar
           mode={mode}
           onMode={setMode}
@@ -465,41 +680,18 @@ export default function KitEditor({
             収録キーがありません。「キーを追加」から追加できます。
           </p>
         ) : mode === "2d" ? (
-          <div
-            className="kit-flat"
-            style={{
-              aspectRatio: `${sheet.study.layout!.width * UNIT + PAD * 2}/${sheet.study.layout!.height * UNIT + PAD * 2}`,
+          <KitSheet2D
+            sheet={sheet}
+            svg={svg}
+            selected={selected}
+            onSelect={selectSheetKey}
+            onBox={(ids, additive) => {
+              setSelection((old) =>
+                additive ? [...new Set([...old, ...ids])] : ids,
+              );
+              setAnchor(ids[0] ?? null);
             }}
-          >
-            <img
-              src={
-                "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)
-              }
-              alt="収録キーのセット展開図"
-            />
-            {sheet.study.layout!.keys.map((k) => (
-              <button
-                key={k.id}
-                className={
-                  selected === sheet.sourceIds[k.id]
-                    ? "kit-hit selected"
-                    : "kit-hit"
-                }
-                aria-label={`${sheet.missingIds.has(k.id) ? "未収録キーを追加" : "収録キー"} ${k.label || "Space"} ${k.w}u ${k.id}`}
-                onClick={() => selectSheetKey(k.id)}
-                style={{
-                  clipPath:
-                    k.shape === "iso-enter"
-                      ? enterClipPath(UNIT, 0)
-                      : undefined,
-                  left: `${(100 * (PAD + k.x * UNIT)) / (sheet.study.layout!.width * UNIT + PAD * 2)}%`,
-                  top: `${(100 * (PAD + k.y * UNIT)) / (sheet.study.layout!.height * UNIT + PAD * 2)}%`,
-                  width: `${(100 * k.w * UNIT) / (sheet.study.layout!.width * UNIT + PAD * 2)}%`,
-                  height: `${(100 * k.h * UNIT) / (sheet.study.layout!.height * UNIT + PAD * 2)}%`,
-                }}
-              />
-            ))}
-          </div>
+          />
         ) : (
           <Suspense fallback={<p>展開図を読み込み中…</p>}>
             <Keyboard3D
