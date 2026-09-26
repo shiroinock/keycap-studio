@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import CustomArtwork from "./CustomArtwork";
 import type { ArtworkAsset } from "../domain/custom-art";
 import HexInput from "./HexInput";
@@ -33,12 +34,20 @@ export default function KitEditor({
   onChange,
   onExport,
   onAssetsChange,
+  purpose,
+  active,
+  inspectorHost,
+  onContinue,
   mode,
   onMode: setMode,
   scene,
   onScene: setScene,
 }: {
   study: Study;
+  purpose: "setup" | "design" | "review";
+  active: boolean;
+  inspectorHost: HTMLDivElement | null;
+  onContinue: () => void;
   mode: "2d" | "3d";
   onMode: (mode: "2d" | "3d") => void;
   scene: SceneSettings;
@@ -73,7 +82,6 @@ export default function KitEditor({
       null,
     );
   const [adding, setAdding] = useState(false);
-  const [view, setView] = useState<"sheet" | "coverage">("sheet");
   const sheet = useMemo(() => kitSheet(study, filter), [study, filter]);
   const svg = useMemo(() => renderKitSvg(study, filter), [study, filter]);
   const entry =
@@ -160,15 +168,313 @@ export default function KitEditor({
     }
   }
   const groups = Object.entries(kitGroups);
+  const inspector = (
+    <div className="selection-inspector">
+      <h2>選択キー</h2>
+      {!selected.length && (
+        <p className="field-note">
+          展開図のキーを選択してください。Shiftで連続選択、⌘ /
+          Ctrlで追加・解除できます。
+        </p>
+      )}
+      {selected.length > 1 && (
+        <form
+          className="kit-bulk-edit"
+          onSubmit={(e) => {
+            e.preventDefault();
+            try {
+              commit(
+                patchKitSelection(kit, selected, {
+                  ...(fields.color ? { color: bulkColor } : {}),
+                  ...(fields.ink ? { ink: bulkInk } : {}),
+                  ...(fields.group ? { group: bulkGroup } : {}),
+                }),
+              );
+            } catch (e) {
+              setError((e as Error).message);
+            }
+          }}
+        >
+          <h3>選択した{selected.length}種類を一括編集</h3>
+          <label>
+            <input
+              type="checkbox"
+              checked={fields.color}
+              onChange={(e) =>
+                setFields({ ...fields, color: e.target.checked })
+              }
+            />
+            キー色を変更
+          </label>
+          <input
+            aria-label="一括キー色"
+            type="color"
+            disabled={!fields.color}
+            value={bulkColor}
+            onChange={(e) => setBulkColor(e.target.value)}
+          />
+          {fields.color && (
+            <HexInput
+              label="一括キー色HEX"
+              value={bulkColor}
+              onChange={setBulkColor}
+            />
+          )}
+          <label>
+            <input
+              type="checkbox"
+              checked={fields.ink}
+              onChange={(e) => setFields({ ...fields, ink: e.target.checked })}
+            />
+            刻印色を変更
+          </label>
+          <input
+            aria-label="一括刻印色"
+            type="color"
+            disabled={!fields.ink}
+            value={bulkInk}
+            onChange={(e) => setBulkInk(e.target.value)}
+          />
+          {fields.ink && (
+            <HexInput
+              label="一括刻印色HEX"
+              value={bulkInk}
+              onChange={setBulkInk}
+            />
+          )}
+          <label>
+            <input
+              type="checkbox"
+              checked={fields.group}
+              onChange={(e) =>
+                setFields({ ...fields, group: e.target.checked })
+              }
+            />
+            所属キットを変更
+          </label>
+          <select
+            aria-label="一括所属キット"
+            disabled={!fields.group}
+            value={bulkGroup}
+            onChange={(e) => setBulkGroup(e.target.value as KitKey["group"])}
+          >
+            {groups.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <button type="submit" disabled={!Object.values(fields).some(Boolean)}>
+            選択したキーに適用
+          </button>
+        </form>
+      )}
+      <div className="kit-selection">
+        <details>
+          <summary>キーを一覧から選ぶ</summary>
+          <label>
+            収録キーを選択
+            <select
+              value={entry?.id ?? ""}
+              onChange={(e) => setSelected(e.target.value)}
+            >
+              <option value="">展開図のキーをクリック</option>
+              {kit.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {kitArtwork(study, k).main || k.label || "Space"} ·{" "}
+                  {keyUsage(k)} · {rowName(k.row, profile)} · {k.w}×{k.h}u ·{" "}
+                  {kitGroups[k.group]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </details>
+        {entry && art && (
+          <div className="kit-key-fields">
+            <label>
+              収録キーの刻印
+              <input
+                maxLength={80}
+                value={art.main}
+                onChange={(e) =>
+                  patch({
+                    artwork: { ...entry.artwork, main: e.target.value },
+                  })
+                }
+              />
+            </label>
+            <label>
+              収録キーのサブ文字
+              <input
+                maxLength={80}
+                value={art.sub}
+                onChange={(e) =>
+                  patch({
+                    artwork: { ...entry.artwork, sub: e.target.value },
+                  })
+                }
+              />
+            </label>
+            <label>
+              収録キーの色
+              <input
+                type="color"
+                value={art.color}
+                onChange={(e) =>
+                  patch({
+                    artwork: { ...entry.artwork, color: e.target.value },
+                  })
+                }
+              />
+            </label>
+            <label>
+              収録キーの文字色
+              <input
+                type="color"
+                value={art.ink}
+                onChange={(e) =>
+                  patch({
+                    artwork: { ...entry.artwork, ink: e.target.value },
+                  })
+                }
+              />
+            </label>
+            <label>
+              収録キーのNovelty
+              <select
+                value={art.novelty}
+                onChange={(e) =>
+                  patch({
+                    artwork: {
+                      ...entry.artwork,
+                      novelty: e.target.value as typeof art.novelty,
+                      customArt: null,
+                    },
+                  })
+                }
+              >
+                {["none", "sun", "moon", "spark", "wave"].map((v, i) => (
+                  <option key={v} value={v}>
+                    {["なし", "太陽", "月", "星", "波"][i]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <details className="key-art">
+              <summary>オリジナルの絵柄</summary>
+              <CustomArtwork
+                assets={study.artworkAssets ?? []}
+                value={art.customArt}
+                onAssets={onAssetsChange}
+                onChange={(customArt) =>
+                  patch({ artwork: { ...entry.artwork, customArt } })
+                }
+              />
+            </details>
+            <details className="key-specs">
+              <summary>所属キット・R・サイズ・個数</summary>{" "}
+              <label>
+                収録グループ
+                <select
+                  value={entry.group}
+                  onChange={(e) =>
+                    patch({
+                      group: e.target.value as KitKey["group"],
+                      placement: undefined,
+                    })
+                  }
+                >
+                  {groups.map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                収録キーのR
+                <select
+                  value={
+                    rowOptions.find(
+                      ([n]) => n === rowName(entry.row, profile),
+                    )?.[1] ?? rowOptions[0][1]
+                  }
+                  onChange={(e) =>
+                    patch({ row: Number(e.target.value), placement: undefined })
+                  }
+                >
+                  {rowOptions.map(([name, row]) => (
+                    <option key={name} value={row}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                収録キーの幅（u）
+                <input
+                  type="number"
+                  min={0.5}
+                  max={10}
+                  step={0.25}
+                  disabled={entry.shape === "iso-enter"}
+                  value={entry.w}
+                  onChange={(e) =>
+                    patch({ w: Number(e.target.value), placement: undefined })
+                  }
+                />
+              </label>
+              <label>
+                収録数
+                <input
+                  type="number"
+                  min={1}
+                  max={200}
+                  step={1}
+                  value={entry.quantity}
+                  onChange={(e) => patch({ quantity: Number(e.target.value) })}
+                />
+              </label>
+            </details>
+            <button
+              onClick={() =>
+                add([
+                  {
+                    ...entry,
+                    group: "novelty",
+                    placement: undefined,
+                    quantity: 1,
+                    artwork: { ...art, novelty: "spark" },
+                  },
+                ])
+              }
+            >
+              ノベルティとして複製
+            </button>
+            <button
+              onClick={() => {
+                commit(kit.filter((k) => k.id !== entry.id));
+                setSelected(null);
+              }}
+            >
+              セットから除外
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
   return (
-    <section className="kit-editor">
+    <section
+      className={`kit-editor ${purpose === "review" ? "kit-review" : ""}`}
+    >
       <header className="kit-heading">
-        <h2>{study.name} · セット展開図</h2>
+        <h2>{purpose === "setup" ? "対応する配列を選ぶ" : "セット展開図"}</h2>
         <span>
           {kit.reduce((n, k) => n + k.quantity, 0)}キー / {kit.length}種類
         </span>
       </header>
-      <div className="kit-actions">
+      <div className="kit-actions" hidden={purpose !== "design"}>
         <label>
           表示キット{" "}
           <select
@@ -189,7 +495,6 @@ export default function KitEditor({
         <button
           onClick={() => {
             setAdding(!adding);
-            setView("sheet");
           }}
         >
           ＋ キーを追加
@@ -205,34 +510,27 @@ export default function KitEditor({
         >
           収録キーの変更を戻す
         </button>
-        <button
-          onClick={() =>
-            onExport({
-              blob: new Blob([svg], { type: "image/svg+xml" }),
-              name: safeName(study.name) + "-kit.svg",
-              kind: "svg",
-            })
-          }
-        >
-          展開図SVG
-        </button>
       </div>
-      <div className="kit-actions" aria-label="セットの表示">
-        <button
-          aria-pressed={view === "sheet"}
-          onClick={() => setView("sheet")}
-        >
-          収録キー
-        </button>
-        <button
-          aria-pressed={view === "coverage"}
-          onClick={() => setView("coverage")}
-        >
-          対応配列
-        </button>
-      </div>
+      {active &&
+        purpose === "design" &&
+        (inspectorHost ? createPortal(inspector, inspectorHost) : inspector)}
+      {purpose === "review" && (
+        <>
+          <button
+            onClick={() =>
+              onExport({
+                blob: new Blob([svg], { type: "image/svg+xml" }),
+                name: safeName(study.name) + "-kit.svg",
+                kind: "svg",
+              })
+            }
+          >
+            展開図SVG
+          </button>{" "}
+        </>
+      )}
       {error && <p role="alert">{error}</p>}
-      {view === "coverage" && (
+      {purpose === "setup" && (
         <LayoutCoverage
           study={study}
           onAdd={add}
@@ -245,87 +543,30 @@ export default function KitEditor({
           }}
         />
       )}
-      <div hidden={view !== "sheet"}>
-        <p className="kit-status">
-          {missing.length ? (
-            <>
-              現在の配列に不足：{missing.reduce((n, r) => n + r.missing, 0)}キー{" "}
-              <button
-                onClick={() =>
-                  add(
-                    missing.map((r) => ({
-                      ...r.key,
-                      quantity: r.missing,
-                      group: r.key.group === "numpad" ? "numpad" : "extras",
-                      placement: undefined,
-                    })),
-                  )
-                }
-              >
-                不足分をセットに追加
-              </button>
-            </>
-          ) : (
-            <>現在の配列の全キーを収録しています</>
-          )}
-        </p>
-        <details className="kit-missing">
-          <summary>配列の収録状況（{requirements.length}種類）</summary>
-          <div className="kit-table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>キー</th>
-                  <th>区分</th>
-                  <th>R</th>
-                  <th>u</th>
-                  <th>収録 / 必要</th>
-                  <th>追加</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requirements.map((r) => (
-                  <tr key={r.signature}>
-                    <td>
-                      {kitArtwork(study, r.key).main || r.key.label || "Space"}
-                    </td>
-                    <td>{keyUsage(r.key)}</td>
-                    <td>{rowName(r.key.row, profile)}</td>
-                    <td>
-                      {r.key.w} × {r.key.h}
-                    </td>
-                    <td>
-                      {r.included} / {r.needed}
-                    </td>
-                    <td>
-                      {r.missing > 0 && (
-                        <button
-                          aria-label={`${r.key.label || "Space"} ${r.key.w}uを追加`}
-                          onClick={() =>
-                            add([
-                              {
-                                ...r.key,
-                                quantity: r.missing,
-                                group:
-                                  r.key.group === "numpad"
-                                    ? "numpad"
-                                    : "extras",
-                                placement: undefined,
-                              },
-                            ])
-                          }
-                        >
-                          ＋ {r.missing}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-        {adding && (
+      {purpose === "setup" && (
+        <div className="workflow-next">
+          <button
+            disabled={!undo}
+            onClick={() => {
+              if (undo) {
+                onChange(undo.kit, undo.targets);
+                setUndo(null);
+              }
+            }}
+          >
+            構成の変更を戻す
+          </button>
+          <button
+            className="primary"
+            disabled={!kit.length}
+            onClick={onContinue}
+          >
+            配色・刻印を編集 →
+          </button>
+        </div>
+      )}
+      <div hidden={purpose === "setup"}>
+        {adding && purpose === "design" && (
           <form
             className="kit-add"
             onSubmit={(e) => {
@@ -502,11 +743,6 @@ export default function KitEditor({
           </form>
         )}
 
-        {filter === "all" && (
-          <p className="kit-note">
-            ANSIを土台に、JISで用途・R・寸法・形状が異なるキーだけを実配列の位置に揃えて下へ表示します。グレーの未収録キーはクリックで追加できます。
-          </p>
-        )}
         <div className="kit-bulk-select">
           <label>
             まとめて選択
@@ -579,107 +815,16 @@ export default function KitEditor({
             ドラッグ：範囲選択
           </p>
         </div>
-        {selected.length > 0 && (
-          <form
-            className="kit-bulk-edit"
-            onSubmit={(e) => {
-              e.preventDefault();
-              try {
-                commit(
-                  patchKitSelection(kit, selected, {
-                    ...(fields.color ? { color: bulkColor } : {}),
-                    ...(fields.ink ? { ink: bulkInk } : {}),
-                    ...(fields.group ? { group: bulkGroup } : {}),
-                  }),
-                );
-              } catch (e) {
-                setError((e as Error).message);
-              }
-            }}
-          >
-            <h3>選択した{selected.length}種類を一括編集</h3>
-            <label>
-              <input
-                type="checkbox"
-                checked={fields.color}
-                onChange={(e) =>
-                  setFields({ ...fields, color: e.target.checked })
-                }
-              />
-              キー色を変更
-            </label>
-            <input
-              aria-label="一括キー色"
-              type="color"
-              disabled={!fields.color}
-              value={bulkColor}
-              onChange={(e) => setBulkColor(e.target.value)}
-            />
-            {fields.color && (
-              <HexInput
-                label="一括キー色HEX"
-                value={bulkColor}
-                onChange={setBulkColor}
-              />
-            )}
-            <label>
-              <input
-                type="checkbox"
-                checked={fields.ink}
-                onChange={(e) =>
-                  setFields({ ...fields, ink: e.target.checked })
-                }
-              />
-              刻印色を変更
-            </label>
-            <input
-              aria-label="一括刻印色"
-              type="color"
-              disabled={!fields.ink}
-              value={bulkInk}
-              onChange={(e) => setBulkInk(e.target.value)}
-            />
-            {fields.ink && (
-              <HexInput
-                label="一括刻印色HEX"
-                value={bulkInk}
-                onChange={setBulkInk}
-              />
-            )}
-            <label>
-              <input
-                type="checkbox"
-                checked={fields.group}
-                onChange={(e) =>
-                  setFields({ ...fields, group: e.target.checked })
-                }
-              />
-              所属キットを変更
-            </label>
-            <select
-              aria-label="一括所属キット"
-              disabled={!fields.group}
-              value={bulkGroup}
-              onChange={(e) => setBulkGroup(e.target.value as KitKey["group"])}
-            >
-              {groups.map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              disabled={!Object.values(fields).some(Boolean)}
-            >
-              選択したキーに適用
-            </button>
-          </form>
-        )}
         {!sheet.kit.length ? (
           <p className="kit-empty">
             収録キーがありません。「キーを追加」から追加できます。
           </p>
+        ) : mode === "2d" && purpose === "review" ? (
+          <img
+            className="kit-readonly"
+            src={"data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)}
+            alt="収録キーのセット展開図"
+          />
         ) : mode === "2d" ? (
           <KitSheet2D
             sheet={sheet}
@@ -705,201 +850,111 @@ export default function KitEditor({
               }
               settings={scene}
               onPose={(pose) => setScene((s) => ({ ...s, pose }))}
-              onSelect={selectSheetKey}
-              onExport={(blob) =>
-                onExport({
-                  blob,
-                  name: safeName(study.name) + "-kit.png",
-                  kind: "png",
-                })
+              onSelect={purpose === "design" ? selectSheetKey : undefined}
+              onExport={
+                purpose === "review"
+                  ? (blob) =>
+                      onExport({
+                        blob,
+                        name: safeName(study.name) + "-kit.png",
+                        kind: "png",
+                      })
+                  : undefined
               }
             />
           </Suspense>
         )}
-        <div className="kit-selection">
-          <label>
-            収録キーを選択
-            <select
-              value={entry?.id ?? ""}
-              onChange={(e) => setSelected(e.target.value)}
-            >
-              <option value="">展開図のキーをクリック</option>
-              {kit.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {kitArtwork(study, k).main || k.label || "Space"} ·{" "}
-                  {keyUsage(k)} · {rowName(k.row, profile)} · {k.w}×{k.h}u ·{" "}
-                  {kitGroups[k.group]}
-                </option>
-              ))}
-            </select>
-          </label>
-          {entry && art && (
-            <div className="kit-key-fields">
-              <label>
-                収録キーの刻印
-                <input
-                  maxLength={80}
-                  value={art.main}
-                  onChange={(e) =>
-                    patch({
-                      artwork: { ...entry.artwork, main: e.target.value },
-                    })
-                  }
-                />
-              </label>
-              <label>
-                収録キーのサブ文字
-                <input
-                  maxLength={80}
-                  value={art.sub}
-                  onChange={(e) =>
-                    patch({
-                      artwork: { ...entry.artwork, sub: e.target.value },
-                    })
-                  }
-                />
-              </label>
-              <label>
-                収録キーの色
-                <input
-                  type="color"
-                  value={art.color}
-                  onChange={(e) =>
-                    patch({
-                      artwork: { ...entry.artwork, color: e.target.value },
-                    })
-                  }
-                />
-              </label>
-              <label>
-                収録キーの文字色
-                <input
-                  type="color"
-                  value={art.ink}
-                  onChange={(e) =>
-                    patch({
-                      artwork: { ...entry.artwork, ink: e.target.value },
-                    })
-                  }
-                />
-              </label>
-              <label>
-                収録キーのNovelty
-                <select
-                  value={art.novelty}
-                  onChange={(e) =>
-                    patch({
-                      artwork: {
-                        ...entry.artwork,
-                        novelty: e.target.value as typeof art.novelty,
-                        customArt: null,
-                      },
-                    })
+        <details className="coverage-note">
+          <summary>現在の配列の収録状況</summary>
+          <p className="kit-status">
+            {missing.length ? (
+              <>
+                現在の配列に不足：{missing.reduce((n, r) => n + r.missing, 0)}
+                キー{" "}
+                <button
+                  onClick={() =>
+                    add(
+                      missing.map((r) => ({
+                        ...r.key,
+                        quantity: r.missing,
+                        group: r.key.group === "numpad" ? "numpad" : "extras",
+                        placement: undefined,
+                      })),
+                    )
                   }
                 >
-                  {["none", "sun", "moon", "spark", "wave"].map((v, i) => (
-                    <option key={v} value={v}>
-                      {["なし", "太陽", "月", "星", "波"][i]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <CustomArtwork
-                assets={study.artworkAssets ?? []}
-                value={art.customArt}
-                onAssets={onAssetsChange}
-                onChange={(customArt) =>
-                  patch({ artwork: { ...entry.artwork, customArt } })
-                }
-              />
-              <label>
-                収録グループ
-                <select
-                  value={entry.group}
-                  onChange={(e) =>
-                    patch({
-                      group: e.target.value as KitKey["group"],
-                      placement: undefined,
-                    })
-                  }
-                >
-                  {groups.map(([id, name]) => (
-                    <option key={id} value={id}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                収録キーのR
-                <select
-                  value={
-                    rowOptions.find(
-                      ([n]) => n === rowName(entry.row, profile),
-                    )?.[1] ?? rowOptions[0][1]
-                  }
-                  onChange={(e) =>
-                    patch({ row: Number(e.target.value), placement: undefined })
-                  }
-                >
-                  {rowOptions.map(([name, row]) => (
-                    <option key={name} value={row}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                収録キーの幅（u）
-                <input
-                  type="number"
-                  min={0.5}
-                  max={10}
-                  step={0.25}
-                  disabled={entry.shape === "iso-enter"}
-                  value={entry.w}
-                  onChange={(e) =>
-                    patch({ w: Number(e.target.value), placement: undefined })
-                  }
-                />
-              </label>
-              <label>
-                収録数
-                <input
-                  type="number"
-                  min={1}
-                  max={200}
-                  step={1}
-                  value={entry.quantity}
-                  onChange={(e) => patch({ quantity: Number(e.target.value) })}
-                />
-              </label>
-              <button
-                onClick={() =>
-                  add([
-                    {
-                      ...entry,
-                      group: "novelty",
-                      placement: undefined,
-                      quantity: 1,
-                      artwork: { ...art, novelty: "spark" },
-                    },
-                  ])
-                }
-              >
-                ノベルティとして複製
-              </button>
-              <button
-                onClick={() => {
-                  commit(kit.filter((k) => k.id !== entry.id));
-                  setSelected(null);
-                }}
-              >
-                セットから除外
-              </button>
-            </div>
-          )}
-        </div>
+                  不足分をセットに追加
+                </button>
+              </>
+            ) : (
+              <>現在の配列の全キーを収録しています</>
+            )}
+          </p>
+        </details>
+        <details className="kit-missing">
+          <summary>配列の収録状況（{requirements.length}種類）</summary>
+          <div className="kit-table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>キー</th>
+                  <th>区分</th>
+                  <th>R</th>
+                  <th>u</th>
+                  <th>収録 / 必要</th>
+                  <th>追加</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requirements.map((r) => (
+                  <tr key={r.signature}>
+                    <td>
+                      {kitArtwork(study, r.key).main || r.key.label || "Space"}
+                    </td>
+                    <td>{keyUsage(r.key)}</td>
+                    <td>{rowName(r.key.row, profile)}</td>
+                    <td>
+                      {r.key.w} × {r.key.h}
+                    </td>
+                    <td>
+                      {r.included} / {r.needed}
+                    </td>
+                    <td>
+                      {r.missing > 0 && (
+                        <button
+                          aria-label={`${r.key.label || "Space"} ${r.key.w}uを追加`}
+                          onClick={() =>
+                            add([
+                              {
+                                ...r.key,
+                                quantity: r.missing,
+                                group:
+                                  r.key.group === "numpad"
+                                    ? "numpad"
+                                    : "extras",
+                                placement: undefined,
+                              },
+                            ])
+                          }
+                        >
+                          ＋ {r.missing}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+        {filter === "all" && (
+          <details className="kit-note">
+            <summary>展開図の見方</summary>
+            <p>
+              ANSIを土台に、JISで用途・R・寸法・形状が異なるキーだけを実配列の位置に揃えて下へ表示します。グレーの未収録キーはクリックで追加できます。
+            </p>
+          </details>
+        )}
         <p className="kit-note">
           {filter === "all"
             ? "共通キーは1回だけ表示します。JIS差分の空欄は、上の共通キーを使用する位置です。"

@@ -1,6 +1,5 @@
-import CustomArtwork from "./components/CustomArtwork";
-import { restoreStudy, type DeletedStudy } from "./domain/library-actions";
 import KitVariantPicker from "./components/KitVariantPicker";
+import { restoreStudy, type DeletedStudy } from "./domain/library-actions";
 import KitEditor from "./components/KitEditor";
 import KitCoverage from "./components/KitCoverage";
 import { profiles, profileIds, defaultProfile } from "./domain/profiles";
@@ -24,19 +23,16 @@ import KLEImportDialog from "./components/KLEImportDialog";
 import ImportDialog from "./components/ImportDialog";
 import HexInput from "./components/HexInput";
 import ExportDialog, { type ExportArtifact } from "./components/ExportDialog";
-import { layoutSignature, type Layout, type KeyRole } from "./domain/layout";
+import { layoutSignature, type Layout } from "./domain/layout";
 import {
   samples,
   getLayout,
   roles,
   roleLabels,
-  resolveKeys,
-  compatibleKitKeys,
   duplicateStudy,
   mergeLibraries,
   parseLibrary,
   type Study,
-  type KeyOverride,
 } from "./domain/model";
 import {
   loadLibrary,
@@ -60,18 +56,10 @@ function initial() {
     };
   }
 }
-const noveltyNames = {
-  none: "なし",
-  sun: "太陽",
-  moon: "月",
-  spark: "星",
-  wave: "波",
-};
 export default function App() {
   const [boot] = useState(initial);
   const [studies, setStudies] = useState<Study[]>(boot.studies);
   const [activeId, setActiveId] = useState(boot.studies[0]?.id ?? "");
-  const [selection, setSelected] = useState("escape");
   const [renderMode, setRenderMode] = useState<"2d" | "3d">("2d");
   const [sceneSettings, setSceneSettings] = useState(DEFAULT_SCENE);
   const export3D = useRef<Capture3D | null>(null);
@@ -84,7 +72,12 @@ export default function App() {
     (pose: CameraPose) => setSceneSettings((s) => ({ ...s, pose })),
     [],
   );
-  const [previewTarget, setPreviewTarget] = useState<"layout" | "kit">("kit");
+  const [reviewTarget, setReviewTarget] = useState<"layout" | "kit">("layout");
+  const [reviewKey, setReviewKey] = useState("");
+  const [stage, setStage] = useState<"setup" | "design" | "review">("design");
+  const [inspectorHost, setInspectorHost] = useState<HTMLDivElement | null>(
+    null,
+  );
   const [search, setSearch] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [blocked, setBlocked] = useState(Boolean(boot.error));
@@ -103,10 +96,6 @@ export default function App() {
     studies.find((s) => s.id === activeId) ?? studies[0] ?? samples[0];
   const layout = getLayout(active),
     layoutKey = layoutSignature(layout);
-  const selected = layout.keys.some((k) => k.id === selection)
-    ? selection
-    : layout.keys[0].id;
-  const resolved = resolveKeys(active).find((k) => k.id === selected)!;
   useEffect(() => {
     setSceneSettings((s) => ({
       ...s,
@@ -114,10 +103,6 @@ export default function App() {
       projection: "perspective",
     }));
   }, [layoutKey]);
-  const selectedVariant = compatibleKitKeys(active, selected).find(
-    (k) => k.id === active.variantSelections?.[layout.id]?.[selected],
-  );
-  const override = selectedVariant?.artwork ?? active.overrides[selected] ?? {};
   useEffect(() => {
     if (blocked) return;
     setSaveState("保存中…");
@@ -154,35 +139,6 @@ export default function App() {
       ),
     );
   }
-  function keyUpdate(patch: KeyOverride) {
-    update((s) => {
-      const chosen = compatibleKitKeys(s, selected).find(
-        (k) => k.id === s.variantSelections?.[getLayout(s).id]?.[selected],
-      );
-      if (chosen) {
-        const { role, ...artwork } = patch;
-        return {
-          ...s,
-          kit: s.kit!.map((k) =>
-            k.id === chosen.id
-              ? {
-                  ...k,
-                  role: role ?? k.role,
-                  artwork: { ...k.artwork, ...artwork },
-                }
-              : k,
-          ),
-        };
-      }
-      return {
-        ...s,
-        overrides: {
-          ...s.overrides,
-          [selected]: { ...s.overrides[selected], ...patch },
-        },
-      };
-    });
-  }
   function add(copy: boolean) {
     if (studies.length >= 200) {
       setNotice("案は200件まで保存できます");
@@ -190,11 +146,13 @@ export default function App() {
     }
     const next = duplicateStudy(active);
     if (!copy) {
-      next.name = "Untitled Study";
+      next.name = "新しいセット";
       next.concept = "";
       next.keywords = "";
       next.overrides = {};
-      next.kit = undefined;
+      next.kit = [];
+      next.artworkAssets = undefined;
+      next.favorite = false;
       next.kitTargets = undefined;
       next.variantSelections = undefined;
       next.designKeys = next.schemaVersion === 3 ? {} : undefined;
@@ -202,6 +160,7 @@ export default function App() {
     }
     setStudies((all) => [...all, next]);
     setActiveId(next.id);
+    setStage(copy ? "design" : "setup");
     setNotice(copy ? "案を複製しました" : "新しい案を作成しました");
   }
   function deleteActive() {
@@ -237,7 +196,6 @@ export default function App() {
       return;
     }
     update((s) => switchLayout(s, layout));
-    setSelected(layout.keys[0].id);
     setKleOpen(false);
     setPresetOpen(false);
     setNotice(layout.name + "に切り替えました");
@@ -316,21 +274,7 @@ export default function App() {
           <span>{studies.length.toString().padStart(2, "0")}</span>
         </div>
         <button className="new-study" onClick={() => add(false)}>
-          ＋ 新しいスタディ
-        </button>
-        <button
-          className="import-layout"
-          disabled={!studies.length}
-          onClick={() => setPresetOpen(true)}
-        >
-          配列の一覧
-        </button>
-        <button
-          className="import-layout"
-          disabled={!studies.length}
-          onClick={() => setKleOpen(true)}
-        >
-          KLE配列を追加
+          ＋ 新しいセット
         </button>
         <input
           className="search"
@@ -357,7 +301,10 @@ export default function App() {
           {visible.map((s, i) => (
             <button
               key={s.id}
-              onClick={() => setActiveId(s.id)}
+              onClick={() => {
+                setActiveId(s.id);
+                setStage("design");
+              }}
               className={`study-item ${s.id === active.id ? "active" : ""}`}
             >
               <span className="study-number">
@@ -487,7 +434,7 @@ export default function App() {
         ) : (
           <>
             <section className="page-heading">
-              <h1>キーキャップデザイン</h1>
+              <h1>{active.name}</h1>
               <div className="set-actions">
                 <button
                   className={`star-button ${active.favorite ? "on" : ""}`}
@@ -499,504 +446,498 @@ export default function App() {
                 >
                   {active.favorite ? "★" : "☆"}
                 </button>
-                <button className="quiet-button" onClick={deleteActive}>
-                  セットを削除
-                </button>
-                <button className="quiet-button" onClick={() => add(true)}>
-                  ⧉ 案を複製
-                </button>
+                <details className="set-menu">
+                  <summary>セットの操作</summary>
+                  <div>
+                    {" "}
+                    <button className="quiet-button" onClick={deleteActive}>
+                      セットを削除
+                    </button>
+                    <button className="quiet-button" onClick={() => add(true)}>
+                      セットを複製
+                    </button>
+                  </div>
+                </details>
               </div>
             </section>
-            <div className="layout-switcher">
-              <label>
-                表示対象
-                <select
-                  value={previewTarget}
-                  onChange={(e) =>
-                    setPreviewTarget(e.target.value as "layout" | "kit")
-                  }
+            <nav className="workflow-nav" aria-label="セット作成の工程">
+              {(
+                [
+                  ["setup", "構成"],
+                  ["design", "デザイン"],
+                  ["review", "確認・出力"],
+                ] as const
+              ).map(([id, label], i) => (
+                <button
+                  key={id}
+                  aria-current={stage === id ? "step" : undefined}
+                  onClick={() => setStage(id)}
                 >
-                  <option value="kit">収録キー一覧</option>
-                  <option value="layout">配列プレビュー</option>
-                </select>
-              </label>
-              <label>
-                プレビュー配列
-                <select
-                  value={layout.id}
-                  onChange={(e) => {
-                    const target = availableLayouts(active).find(
-                      (l) => l.id === e.target.value,
-                    );
-                    if (target) importLayout(target);
-                  }}
-                >
-                  {availableLayouts(active).map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name} · {l.keys.length}キー
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                プロファイル
-                <select
-                  value={active.profile ?? defaultProfile}
-                  onChange={(e) =>
-                    update((s) => ({
-                      ...s,
-                      profile: e.target.value as typeof defaultProfile,
-                    }))
-                  }
-                >
-                  {[
-                    ...new Set(
-                      profileIds.map((id) => profiles[id].group ?? "その他"),
-                    ),
-                  ].map((group) => (
-                    <optgroup key={group} label={group}>
-                      {profileIds
-                        .filter(
-                          (id) => (profiles[id].group ?? "その他") === group,
-                        )
-                        .map((id) => (
-                          <option key={id} value={id}>
-                            {profiles[id].name}
-                          </option>
-                        ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
-              <span>
-                共通キーの編集を引き継ぎます · プロファイルは3Dに反映（概形）
-              </span>
-            </div>
-            <details className="profile-info">
-              <summary>プロファイルの仕様・参照元</summary>
-              <p>
-                {profiles[active.profile ?? defaultProfile].name} ·{" "}
-                {profiles[active.profile ?? defaultProfile].uniform
-                  ? "均一"
-                  : "段差あり"}{" "}
-                · 外観確認用の概形
-              </p>
-              <p>
-                公開資料を参考に高さ・傾斜・天面を近似しています。実測CADではありません。選択した配列の全キーへ形状を適用しますが、実製品のR・u収録や取付互換性を示すものではありません。
-              </p>
-              {profiles[active.profile ?? defaultProfile].source && (
-                <a
-                  href={profiles[active.profile ?? defaultProfile].source}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  メーカー・設計者の資料
-                </a>
-              )}
-            </details>
-
-            <div className="editor-grid global-editor-grid">
-              <section className="editor-card concept-card">
-                <div className="section-title">
-                  <span>01</span>
-                  <h2>コンセプト</h2>
-                </div>
+                  <span>{i + 1}</span>
+                  {label}
+                </button>
+              ))}
+            </nav>
+            {stage === "setup" && (
+              <section className="setup-intro">
                 <label>
-                  スタディ名
+                  セット名
                   <input
                     value={active.name}
                     maxLength={80}
                     onChange={(e) =>
                       update((s) => ({
                         ...s,
-                        name: e.target.value || "Untitled",
+                        name: e.target.value || "新しいセット",
                       }))
                     }
                   />
                 </label>
                 <label>
-                  ストーリー
-                  <textarea
-                    rows={3}
-                    maxLength={1200}
-                    value={active.concept}
+                  プロファイル
+                  <select
+                    value={active.profile ?? defaultProfile}
                     onChange={(e) =>
-                      update((s) => ({ ...s, concept: e.target.value }))
+                      update((s) => ({
+                        ...s,
+                        profile: e.target.value as typeof defaultProfile,
+                      }))
                     }
-                  />
+                  >
+                    {[
+                      ...new Set(
+                        profileIds.map((id) => profiles[id].group ?? "その他"),
+                      ),
+                    ].map((group) => (
+                      <optgroup key={group} label={group}>
+                        {profileIds
+                          .filter(
+                            (id) => (profiles[id].group ?? "その他") === group,
+                          )
+                          .map((id) => (
+                            <option key={id} value={id}>
+                              {profiles[id].name}
+                            </option>
+                          ))}
+                      </optgroup>
+                    ))}
+                  </select>
                 </label>
-                <label>
-                  キーワード
-                  <input
-                    value={active.keywords}
-                    maxLength={240}
-                    onChange={(e) =>
-                      update((s) => ({ ...s, keywords: e.target.value }))
-                    }
-                    placeholder="quiet / city / midnight"
-                  />
-                </label>
+                <button
+                  className="import-layout"
+                  disabled={!studies.length}
+                  onClick={() => setPresetOpen(true)}
+                >
+                  配列の一覧
+                </button>
+                <button
+                  className="import-layout"
+                  disabled={!studies.length}
+                  onClick={() => setKleOpen(true)}
+                >
+                  KLE配列を追加
+                </button>
               </section>
-              <section className="editor-card">
-                <div className="section-title">
-                  <span>02</span>
-                  <h2>カラーパレット</h2>
-                </div>
-                <div className="palette-head">
-                  <span>キーの役割</span>
-                  <span>キー色 / 文字色</span>
-                </div>
-                {roles.map((role) => (
-                  <div className="palette-row" key={role}>
-                    <span
-                      className="palette-preview"
-                      style={{
-                        background: active.palette[role].color,
-                        color: active.palette[role].ink,
-                      }}
+            )}
+            {stage === "setup" && (
+              <>
+                <details className="profile-info">
+                  <summary>プロファイルの仕様・参照元</summary>
+                  <p>
+                    {profiles[active.profile ?? defaultProfile].name} ·{" "}
+                    {profiles[active.profile ?? defaultProfile].uniform
+                      ? "均一"
+                      : "段差あり"}{" "}
+                    · 外観確認用の概形
+                  </p>
+                  <p>
+                    公開資料を参考に高さ・傾斜・天面を近似しています。実測CADではありません。選択した配列の全キーへ形状を適用しますが、実製品のR・u収録や取付互換性を示すものではありません。
+                  </p>
+                  {profiles[active.profile ?? defaultProfile].source && (
+                    <a
+                      href={profiles[active.profile ?? defaultProfile].source}
+                      target="_blank"
+                      rel="noreferrer"
                     >
-                      Aa
-                    </span>
-                    <span className="palette-name">
-                      {roleLabels[role]}
-                      <HexInput
-                        label={`${roleLabels[role]}のHEX`}
-                        value={active.palette[role].color}
-                        onChange={(color) =>
+                      メーカー・設計者の資料
+                    </a>
+                  )}
+                </details>
+              </>
+            )}
+            <div
+              className={`workflow-workspace ${stage === "design" ? "design-stage" : ""}`}
+            >
+              <aside className="design-inspector" hidden={stage !== "design"}>
+                <details className="editor-card concept-card">
+                  <summary>セットの説明</summary>
+
+                  <label>
+                    スタディ名
+                    <input
+                      value={active.name}
+                      maxLength={80}
+                      onChange={(e) =>
+                        update((s) => ({
+                          ...s,
+                          name: e.target.value || "Untitled",
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    ストーリー
+                    <textarea
+                      rows={3}
+                      maxLength={1200}
+                      value={active.concept}
+                      onChange={(e) =>
+                        update((s) => ({ ...s, concept: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    キーワード
+                    <input
+                      value={active.keywords}
+                      maxLength={240}
+                      onChange={(e) =>
+                        update((s) => ({ ...s, keywords: e.target.value }))
+                      }
+                      placeholder="quiet / city / midnight"
+                    />
+                  </label>
+                </details>
+                <section className="editor-card">
+                  <div className="section-title">
+                    <h2>カラーパレット</h2>
+                  </div>
+                  <div className="palette-head">
+                    <span>キーの役割</span>
+                    <span>キー色 / 文字色</span>
+                  </div>
+                  {roles.map((role) => (
+                    <div className="palette-row" key={role}>
+                      <span
+                        className="palette-preview"
+                        style={{
+                          background: active.palette[role].color,
+                          color: active.palette[role].ink,
+                        }}
+                      >
+                        Aa
+                      </span>
+                      <span className="palette-name">
+                        {roleLabels[role]}
+                        <HexInput
+                          label={`${roleLabels[role]}のHEX`}
+                          value={active.palette[role].color}
+                          onChange={(color) =>
+                            update((s) => ({
+                              ...s,
+                              palette: {
+                                ...s.palette,
+                                [role]: { ...s.palette[role], color },
+                              },
+                            }))
+                          }
+                        />
+                      </span>
+                      <label className="color-input">
+                        <span className="sr-only">
+                          {roleLabels[role]}のキー色
+                        </span>
+                        <input
+                          type="color"
+                          value={active.palette[role].color}
+                          onInput={(e) => {
+                            const color = e.currentTarget.value;
+                            update((s) => ({
+                              ...s,
+                              palette: {
+                                ...s.palette,
+                                [role]: { ...s.palette[role], color },
+                              },
+                            }));
+                          }}
+                        />
+                      </label>
+                      <label className="color-input">
+                        <span className="sr-only">
+                          {roleLabels[role]}の文字色
+                        </span>
+                        <input
+                          type="color"
+                          value={active.palette[role].ink}
+                          onInput={(e) => {
+                            const ink = e.currentTarget.value;
+                            update((s) => ({
+                              ...s,
+                              palette: {
+                                ...s.palette,
+                                [role]: { ...s.palette[role], ink },
+                              },
+                            }));
+                          }}
+                        />
+                      </label>
+                    </div>
+                  ))}
+                  <div className="legend-options">
+                    <label>
+                      文字の位置
+                      <select
+                        value={active.legend.align}
+                        onChange={(e) =>
                           update((s) => ({
                             ...s,
-                            palette: {
-                              ...s.palette,
-                              [role]: { ...s.palette[role], color },
+                            legend: {
+                              ...s.legend,
+                              align: e.target.value as "left" | "center",
                             },
                           }))
                         }
-                      />
-                    </span>
-                    <label className="color-input">
-                      <span className="sr-only">
-                        {roleLabels[role]}のキー色
-                      </span>
-                      <input
-                        type="color"
-                        value={active.palette[role].color}
-                        onInput={(e) => {
-                          const color = e.currentTarget.value;
-                          update((s) => ({
-                            ...s,
-                            palette: {
-                              ...s.palette,
-                              [role]: { ...s.palette[role], color },
-                            },
-                          }));
-                        }}
-                      />
-                    </label>
-                    <label className="color-input">
-                      <span className="sr-only">
-                        {roleLabels[role]}の文字色
-                      </span>
-                      <input
-                        type="color"
-                        value={active.palette[role].ink}
-                        onInput={(e) => {
-                          const ink = e.currentTarget.value;
-                          update((s) => ({
-                            ...s,
-                            palette: {
-                              ...s.palette,
-                              [role]: { ...s.palette[role], ink },
-                            },
-                          }));
-                        }}
-                      />
-                    </label>
-                  </div>
-                ))}
-                <div className="legend-options">
-                  <label>
-                    文字の位置
-                    <select
-                      value={active.legend.align}
-                      onChange={(e) =>
-                        update((s) => ({
-                          ...s,
-                          legend: {
-                            ...s.legend,
-                            align: e.target.value as "left" | "center",
-                          },
-                        }))
-                      }
-                    >
-                      <option value="left">左寄せ</option>
-                      <option value="center">中央</option>
-                    </select>
-                  </label>
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={active.legend.sublegends}
-                      onChange={(e) =>
-                        update((s) => ({
-                          ...s,
-                          legend: {
-                            ...s.legend,
-                            sublegends: e.target.checked,
-                          },
-                        }))
-                      }
-                    />{" "}
-                    サブレジェンド
-                  </label>
-                </div>
-              </section>
-            </div>
-            <SceneToolbar
-              mode={renderMode}
-              onMode={setRenderMode}
-              settings={sceneSettings}
-              onSettings={setSceneSettings}
-            />
-            <div hidden={previewTarget !== "kit"}>
-              <KitEditor
-                key={active.id}
-                study={active}
-                mode={previewTarget === "kit" ? renderMode : "2d"}
-                onMode={setRenderMode}
-                scene={sceneSettings}
-                onScene={setSceneSettings}
-                onAssetsChange={(artworkAssets) =>
-                  update((s) => ({ ...s, artworkAssets }))
-                }
-                onChange={(kit, kitTargets) =>
-                  update((s) => ({ ...s, kit, kitTargets }))
-                }
-                onExport={setArtifact}
-              />
-            </div>
-            {previewTarget === "layout" && (
-              <>
-                <KitCoverage study={active} />
-                <section className="preview-panel">
-                  <div className="preview-heading">
-                    <div>
-                      <h2>{active.name}</h2>
-                    </div>
-                  </div>
-                  <div className="keyboard-stage">
-                    {renderMode === "2d" ? (
-                      <Keyboard
-                        study={active}
-                        selected={selected}
-                        onSelect={setSelected}
-                      />
-                    ) : (
-                      <Suspense
-                        fallback={
-                          <div className="three-loading">
-                            3Dエンジンを読み込み中…
-                          </div>
-                        }
                       >
-                        <Keyboard3D
-                          study={active}
-                          settings={sceneSettings}
-                          onPose={updatePose}
-                          onSelect={setSelected}
-                          onReady={register3D}
-                        />
-                      </Suspense>
-                    )}
-                  </div>
-                  <div className="preview-footer">
-                    <span>
-                      <span className="tiny-square" />{" "}
-                      キーを選んで、個別にカスタマイズ
-                    </span>
-                    <span>
-                      {renderMode === "2d"
-                        ? "TOP VIEW / SVG"
-                        : "3D / STUDIO SCULPTED"}
-                    </span>
+                        <option value="left">左寄せ</option>
+                        <option value="center">中央</option>
+                      </select>
+                    </label>
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={active.legend.sublegends}
+                        onChange={(e) =>
+                          update((s) => ({
+                            ...s,
+                            legend: {
+                              ...s.legend,
+                              sublegends: e.target.checked,
+                            },
+                          }))
+                        }
+                      />{" "}
+                      サブレジェンド
+                    </label>
                   </div>
                 </section>
-                <section className="editor-card key-editor">
-                  <div className="section-title">
-                    <span>03</span>
-                    <h2>キーをカスタマイズ</h2>
-                  </div>
-                  <label>
-                    選択中のキー
+                <div ref={setInspectorHost} />
+              </aside>
+
+              <div className="workflow-canvas">
+                {stage === "review" && (
+                  <label className="review-target">
+                    確認・出力するもの
                     <select
-                      value={selected}
-                      onChange={(e) => setSelected(e.target.value)}
-                    >
-                      {layout.keys.map((k) => (
-                        <option key={k.id} value={k.id}>
-                          {k.label || "無刻印"} · {k.id} · {k.w}×{k.h}u
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <KitVariantPicker
-                    study={active}
-                    keyId={selected}
-                    onChange={(next) => update(() => next)}
-                  />
-                  <div className="two-fields">
-                    <label>
-                      メイン文字
-                      <input
-                        maxLength={80}
-                        value={resolved.main}
-                        onChange={(e) => keyUpdate({ main: e.target.value })}
-                      />
-                    </label>
-                    <label>
-                      サブ文字
-                      <input
-                        maxLength={80}
-                        value={resolved.sub}
-                        onChange={(e) => keyUpdate({ sub: e.target.value })}
-                      />
-                    </label>
-                  </div>
-                  <div className="two-fields">
-                    <label>
-                      色の役割
-                      <select
-                        value={resolved.role}
-                        onChange={(e) =>
-                          keyUpdate({ role: e.target.value as KeyRole })
-                        }
-                      >
-                        {roles.map((r) => (
-                          <option key={r} value={r}>
-                            {roleLabels[r]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Novelty
-                      <select
-                        value={resolved.novelty}
-                        onChange={(e) =>
-                          keyUpdate({
-                            novelty: e.target.value as KeyOverride["novelty"],
-                            customArt: null,
-                          })
-                        }
-                      >
-                        {Object.entries(noveltyNames).map(([v, n]) => (
-                          <option key={v} value={v}>
-                            {n}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  <div className="key-custom-colors">
-                    <label>
-                      キー色
-                      <input
-                        aria-label="選択キーの色"
-                        type="color"
-                        value={resolved.color}
-                        onInput={(e) =>
-                          keyUpdate({ color: e.currentTarget.value })
-                        }
-                      />
-                    </label>
-                    <label>
-                      文字色
-                      <input
-                        aria-label="選択キーの文字色"
-                        type="color"
-                        value={resolved.ink}
-                        onInput={(e) =>
-                          keyUpdate({ ink: e.currentTarget.value })
-                        }
-                      />
-                    </label>
-                    <button
-                      className="text-button"
-                      disabled={!Object.keys(override).length}
-                      onClick={() =>
-                        update((s) => {
-                          if (selectedVariant)
-                            return {
-                              ...s,
-                              kit: s.kit!.map((k) =>
-                                k.id === selectedVariant.id
-                                  ? { ...k, artwork: undefined }
-                                  : k,
-                              ),
-                            };
-                          const overrides = { ...s.overrides };
-                          delete overrides[selected];
-                          return { ...s, overrides };
-                        })
+                      value={reviewTarget}
+                      onChange={(e) =>
+                        setReviewTarget(e.target.value as "layout" | "kit")
                       }
                     >
-                      このキーをリセット
-                    </button>
-                  </div>
-                  <CustomArtwork
-                    assets={active.artworkAssets ?? []}
-                    value={resolved.customArt}
-                    onAssets={(artworkAssets) =>
+                      <option value="layout">配列への装着イメージ</option>
+                      <option value="kit">セットの展開図</option>
+                    </select>
+                  </label>
+                )}
+                {stage !== "setup" && (
+                  <SceneToolbar
+                    mode={renderMode}
+                    onMode={setRenderMode}
+                    settings={sceneSettings}
+                    onSettings={setSceneSettings}
+                  />
+                )}
+                <div hidden={stage === "review" && reviewTarget === "layout"}>
+                  <KitEditor
+                    key={active.id}
+                    study={active}
+                    mode={
+                      stage === "design" ||
+                      (stage === "review" && reviewTarget === "kit")
+                        ? renderMode
+                        : "2d"
+                    }
+                    purpose={stage}
+                    active={stage === "design"}
+                    inspectorHost={inspectorHost}
+                    onContinue={() => setStage("design")}
+                    onMode={setRenderMode}
+                    scene={sceneSettings}
+                    onScene={setSceneSettings}
+                    onAssetsChange={(artworkAssets) =>
                       update((s) => ({ ...s, artworkAssets }))
                     }
-                    onChange={(customArt) => keyUpdate({ customArt })}
+                    onChange={(kit, kitTargets) =>
+                      update((s) => ({ ...s, kit, kitTargets }))
+                    }
+                    onExport={setArtifact}
                   />
-                  {resolved.novelty !== "none" && (
-                    <p className="field-note">
-                      Noveltyは文字の代わりに表示します。
-                    </p>
-                  )}
-                </section>
-                <section className="export-bar">
-                  <div>
-                    <strong>画像を書き出す</strong>
-                    <p>
-                      {renderMode === "2d"
-                        ? "透明背景で出力。縦長の配列はPNGサイズを自動調整します。"
-                        : "3Dは現在の視点・照明でPNG出力。SVGは2Dの出力です。"}
-                    </p>
-                  </div>
-                  <div className="export-actions">
-                    <label className="sr-only" htmlFor="png-width">
-                      PNG出力幅
+                </div>
+                {stage === "review" && reviewTarget === "layout" && (
+                  <>
+                    <label>
+                      プレビュー配列
+                      <select
+                        value={layout.id}
+                        onChange={(e) => {
+                          const target = availableLayouts(active).find(
+                            (l) => l.id === e.target.value,
+                          );
+                          if (target) importLayout(target);
+                        }}
+                      >
+                        {availableLayouts(active).map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name} · {l.keys.length}キー
+                          </option>
+                        ))}
+                      </select>
                     </label>
-                    <select
-                      id="png-width"
-                      value={pngWidth}
-                      onChange={(e) => setPngWidth(Number(e.target.value))}
-                    >
-                      <option value={1896}>PNG · 1896 px</option>
-                      <option value={2844}>PNG · 2844 px</option>
-                      <option value={3792}>PNG · 3792 px</option>
-                    </select>
-                    <button
-                      disabled={exporting}
-                      onClick={() => exportImage("svg")}
-                    >
-                      ↓ SVG
+                    <KitCoverage study={active} />
+                    <section className="preview-panel">
+                      <div className="preview-heading">
+                        <div>
+                          <h2>{active.name}</h2>
+                        </div>
+                      </div>
+                      <div className="keyboard-stage">
+                        {renderMode === "2d" ? (
+                          <Keyboard study={active} />
+                        ) : (
+                          <Suspense
+                            fallback={
+                              <div className="three-loading">
+                                3Dエンジンを読み込み中…
+                              </div>
+                            }
+                          >
+                            <Keyboard3D
+                              study={active}
+                              settings={sceneSettings}
+                              onPose={updatePose}
+                              onReady={register3D}
+                            />
+                          </Suspense>
+                        )}
+                      </div>
+                      <div className="preview-footer">
+                        <span>
+                          <span className="tiny-square" />{" "}
+                          配列に装着した状態を確認
+                        </span>
+                        <span>
+                          {renderMode === "2d"
+                            ? "TOP VIEW / SVG"
+                            : "3D / STUDIO SCULPTED"}
+                        </span>
+                      </div>
+                    </section>
+                    <details className="review-variants">
+                      <summary>配列ごとの使用バリエーション</summary>
+                      <label>
+                        確認するキー
+                        <select
+                          value={
+                            layout.keys.some((k) => k.id === reviewKey)
+                              ? reviewKey
+                              : layout.keys[0].id
+                          }
+                          onChange={(e) => setReviewKey(e.target.value)}
+                        >
+                          {layout.keys.map((k) => (
+                            <option key={k.id} value={k.id}>
+                              {k.label || "Space"} · {k.w}×{k.h}u
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <KitVariantPicker
+                        study={active}
+                        keyId={
+                          layout.keys.some((k) => k.id === reviewKey)
+                            ? reviewKey
+                            : layout.keys[0].id
+                        }
+                        onChange={(next) => update(() => next)}
+                      />
+                    </details>
+                    <section className="export-bar">
+                      <div>
+                        <strong>画像を書き出す</strong>
+                        <p>
+                          {renderMode === "2d"
+                            ? "透明背景で出力。縦長の配列はPNGサイズを自動調整します。"
+                            : "3Dは現在の視点・照明でPNG出力。SVGは2Dの出力です。"}
+                        </p>
+                      </div>
+                      <div className="export-actions">
+                        <label className="sr-only" htmlFor="png-width">
+                          PNG出力幅
+                        </label>
+                        <select
+                          id="png-width"
+                          value={pngWidth}
+                          onChange={(e) => setPngWidth(Number(e.target.value))}
+                        >
+                          <option value={1896}>PNG · 1896 px</option>
+                          <option value={2844}>PNG · 2844 px</option>
+                          <option value={3792}>PNG · 3792 px</option>
+                        </select>
+                        <button
+                          disabled={exporting}
+                          onClick={() => exportImage("svg")}
+                        >
+                          ↓ SVG
+                        </button>
+                        <button
+                          className="primary"
+                          disabled={
+                            exporting || (renderMode === "3d" && !ready3D)
+                          }
+                          onClick={() => exportImage("png")}
+                        >
+                          {renderMode === "3d"
+                            ? "↓ 3D PNGを書き出す"
+                            : "↓ PNGを書き出す"}
+                        </button>
+                      </div>
+                    </section>
+                  </>
+                )}
+                {stage === "design" && (
+                  <div className="workflow-next">
+                    <button onClick={() => setStage("setup")}>
+                      構成を見直す
                     </button>
                     <button
                       className="primary"
-                      disabled={exporting || (renderMode === "3d" && !ready3D)}
-                      onClick={() => exportImage("png")}
+                      onClick={() => setStage("review")}
                     >
-                      {renderMode === "3d"
-                        ? "↓ 3D PNGを書き出す"
-                        : "↓ PNGを書き出す"}
+                      確認・出力へ →
                     </button>
                   </div>
-                </section>
-              </>
-            )}
+                )}
+                {stage === "review" && (
+                  <div className="workflow-next">
+                    <button onClick={() => setStage("design")}>
+                      デザインに戻る
+                    </button>
+                    <button
+                      onClick={() =>
+                        setArtifact({
+                          blob: new Blob([serialize([active])], {
+                            type: "application/json",
+                          }),
+                          name: safeName(active.name) + ".json",
+                          kind: "json",
+                        })
+                      }
+                    >
+                      このセットのJSONを保存
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </>
         )}
         <footer className="main-footer">
