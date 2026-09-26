@@ -45,7 +45,241 @@ function clusterFunction(key: KitKey) {
 }
 
 export type SheetLabel = { x: number; y: number; text: string; width: number };
+function fullKitSheet(study: Study) {
+  const kit = getKit(study);
+  const keys: LayoutKey[] = [];
+  const labels: SheetLabel[] = [];
+  const overrides: Study["overrides"] = {};
+  const functionKeys = kit.filter(
+    (k) =>
+      k.group !== "novelty" && /^F([1-9]|1[0-2])$/.test(clusterFunction(k)),
+  );
+  const navigation = kit.filter(
+    (k) =>
+      k.group !== "novelty" &&
+      clusterSlots.some((slots) => slots.includes(clusterFunction(k))) &&
+      clusterFunction(k) !== "",
+  );
+  const special = new Set([...functionKeys, ...navigation].map((k) => k.id));
+  const base = kit.filter((k) => k.group === "base" && !special.has(k.id));
+  // Individual group views use the same compact row packer, without composing another overview.
+  function panel(
+    items: KitKey[],
+    group: KitKey["group"],
+    x: number,
+    y: number,
+  ) {
+    if (!items.length) return y;
+    const part = kitSheet(
+      { ...study, kit: items.map((k) => ({ ...k, group })) },
+      group,
+    );
+    for (const k of part.study.layout!.keys)
+      keys.push({ ...k, x: k.x + x, y: k.y + y });
+    for (const label of part.labels) {
+      if (group === "numpad" && label.text !== kitGroups.numpad) continue;
+      labels.push({
+        ...label,
+        x: label.x + x + (group === "numpad" ? 1.4 : 0),
+        y: label.y + y,
+      });
+    }
+    return Math.max(...part.study.layout!.keys.map((k) => k.y + k.h + y));
+  }
+  const fCounts = new Map<string, number>();
+  for (const k of functionKeys) {
+    const name = clusterFunction(k),
+      n = Number(name.slice(1)) - 1;
+    const variant = fCounts.get(name) ?? 0;
+    fCounts.set(name, variant + 1);
+    keys.push({
+      ...k,
+      x: 3.4 + n + Math.floor(n / 4) * 0.5,
+      y: 0.9 + variant,
+      rotation: 0,
+    });
+  }
+  const fHeight = Math.max(0, ...fCounts.values());
+  const topRows = Math.max(
+    fHeight,
+    navigation.some((k) => clusterSlots[0].includes(clusterFunction(k)))
+      ? 1
+      : 0,
+  );
+  const baseTop = topRows ? topRows + 0.5 : 0;
+  const baseEnd = panel(base, "base", 0, baseTop);
+  const baseKeys = keys.filter((k) => base.some((b) => b.id === k.id));
+  const baseRight = Math.max(16.4, ...baseKeys.map((k) => k.x + k.w));
+  const mainY = baseTop + 0.9;
+  const extras = kit.filter((k) => k.group === "extras" && !special.has(k.id));
+  const jisNames = new Set([
+    "半角/全角",
+    "^",
+    "¥",
+    "@",
+    ":",
+    "]",
+    "ろ",
+    "無変換",
+    "変換",
+    "かな",
+  ]);
+  const jis = extras.filter(
+    (k) =>
+      k.shape !== "space" &&
+      (jisNames.has(k.label) ||
+        k.shape === "iso-enter" ||
+        (k.label === "Backspace" && k.w === 1)),
+  );
+  const jisKeys: LayoutKey[] = [];
+  const jisX = baseRight + 0.5;
+  for (const k of jis) {
+    let x = jisX;
+    const py = mainY + Math.max(0, k.row);
+    while (true) {
+      const hit = jisKeys.find(
+        (a) =>
+          x < a.x + a.w - 1e-6 &&
+          x + k.w > a.x + 1e-6 &&
+          py < a.y + a.h - 1e-6 &&
+          py + k.h > a.y + 1e-6,
+      );
+      if (!hit) break;
+      x = hit.x + hit.w;
+    }
+    const placed = { ...k, x, y: py, rotation: 0 };
+    jisKeys.push(placed);
+    keys.push(placed);
+  }
+  if (jis.length) labels.push({ x: jisX, y: baseTop, text: "JIS", width: 3 });
+  const navX = jis.length
+    ? Math.max(...jisKeys.map((k) => k.x + k.w)) + 0.5
+    : jisX;
+  let sideEnd = Math.max(baseEnd, ...jisKeys.map((k) => k.y + k.h));
+  // Keep the familiar print row, navigation block and inverted T in the middle column.
+  const navStarts = [0.9, mainY, mainY + 3];
+  const overflowStart = mainY + 5.5;
+  let overflowY = overflowStart;
+  clusterSlots.forEach((slots, cluster) => {
+    const buckets = slots.map((name) =>
+      navigation.filter((k) => clusterFunction(k) === name),
+    );
+    for (
+      let variant = 0;
+      variant < Math.max(...buckets.map((b) => b.length));
+      variant++
+    ) {
+      const top = variant ? overflowY : navStarts[cluster];
+      buckets.forEach((bucket, slot) => {
+        const k = bucket[variant];
+        if (!k) return;
+        const placed = {
+          ...k,
+          x: navX + (slot % 3),
+          y: top + Math.floor(slot / 3),
+          rotation: 0,
+        };
+        keys.push(placed);
+        sideEnd = Math.max(sideEnd, placed.y + placed.h);
+      });
+      if (variant) overflowY += Math.ceil(slots.length / 3) + 0.5;
+    }
+  });
+  const numpad = kit.filter((k) => k.group === "numpad" && !special.has(k.id));
+  sideEnd = Math.max(
+    sideEnd,
+    panel(numpad, "numpad", navX + 3.5 - 1.4, baseTop),
+  );
+  const spaces = extras.filter((k) => k.shape === "space");
+  const bottom = extras.filter(
+    (k) => k.shape !== "space" && k.row >= 3 && !jis.includes(k),
+  );
+  const rest = extras.filter(
+    (k) => !spaces.includes(k) && !bottom.includes(k) && !jis.includes(k),
+  );
+  let lowerY = baseEnd + 0.3;
+  // Limit these rows to the main typing block, then align spacebar alternatives to its spacebar.
+  function below(items: KitKey[], space = false) {
+    if (!items.length) return;
+    const left = space
+      ? (baseKeys.find((k) => k.shape === "space")?.x ?? 4.4)
+      : 1.4;
+    const packed = kitSheet(
+      { ...study, kit: items.map((k) => ({ ...k, placement: undefined })) },
+      "extras",
+    );
+    const rowGroups = new Map<number, LayoutKey[]>();
+    for (const k of packed.study.layout!.keys) {
+      const row = rowGroups.get(k.y) ?? [];
+      row.push(k);
+      rowGroups.set(k.y, row);
+    }
+    for (const row of rowGroups.values()) {
+      let x = left,
+        rowHeight = 1;
+      labels.push({
+        x: 0,
+        y: lowerY + 0.25,
+        text: space
+          ? "Space"
+          : rowName(row[0].row, study.profile ?? defaultProfile),
+        width: 1.2,
+      });
+      for (const k of row) {
+        if (x + k.w > baseRight && x > left) {
+          lowerY += rowHeight;
+          x = left;
+          rowHeight = 1;
+        }
+        keys.push({ ...k, x, y: lowerY });
+        x += k.w;
+        rowHeight = Math.max(rowHeight, k.h);
+      }
+      lowerY += rowHeight;
+    }
+  }
+  below(bottom);
+  below(spaces, true);
+  // Other row variants follow below the main block; the existing packer retains tall-key spans.
+  lowerY = panel(rest, "extras", 0, Math.max(lowerY, sideEnd) + 0.3);
+  const novelty = kit.filter((k) => k.group === "novelty");
+  panel(novelty, "novelty", 0, Math.max(lowerY, sideEnd) + 0.5);
+  for (const k of kit)
+    overrides[k.id] = { ...kitArtwork(study, k), role: k.role };
+  const layout = {
+    id: "kit-sheet",
+    version: 1,
+    name: "セット展開図",
+    pitchMm: 19.05,
+    width: Math.max(24.4, ...keys.map((k) => k.x + k.w + 0.5)),
+    height: Math.max(2, ...keys.map((k) => k.y + k.h + 0.7)),
+    keys,
+  };
+  return {
+    study: {
+      ...study,
+      kit: undefined,
+      layoutId: layout.id,
+      layout,
+      overrides,
+    } as Study,
+    labels,
+    kit,
+  };
+}
+
 export function kitSheet(study: Study, filter: string = "all") {
+  if (
+    filter === "all" &&
+    getKit(study).some(
+      (k) =>
+        k.group === "base" &&
+        !/^F\d+$/.test(clusterFunction(k)) &&
+        !clusterSlots.flat().includes(clusterFunction(k)),
+    )
+  )
+    return fullKitSheet(study);
+
   const kit = getKit(study).filter(
     (k) => filter === "all" || k.group === filter,
   );

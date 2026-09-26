@@ -229,3 +229,55 @@ it("keeps navigation and arrow clusters intact across rows and legend edits", ()
       ).toBe(false);
     }
 });
+
+it("composes a full-size kit around the base with JIS on its right", () => {
+  let study = switchLayout(samples[0], preset("preset-fullsize_jis-v1"));
+  study = {
+    ...study,
+    kit: addKitKeys(
+      study,
+      kitCoverage(study)
+        .filter((r) => r.missing)
+        .map((r) => ({
+          ...r.key,
+          quantity: r.missing,
+          group: r.key.group === "numpad" ? "numpad" : "extras",
+          placement: undefined,
+        })),
+    ),
+  };
+  const sheet = kitSheet(study),
+    keys = sheet.study.layout!.keys;
+  const k = (name: string, group?: string) =>
+    keys.find(
+      (k) =>
+        k.label === name &&
+        (!group || study.kit!.find((a) => a.id === k.id)!.group === group),
+    )!;
+  const base = keys.filter(
+    (key) => study.kit!.find((a) => a.id === key.id)!.group === "base",
+  );
+  const right = Math.max(...base.map((k) => k.x + k.w));
+  const bottom = Math.max(...base.map((k) => k.y + k.h));
+  expect(k("F1").y + 1).toBeLessThanOrEqual(k("1", "base").y);
+  expect(k("半角/全角").x).toBeGreaterThan(right);
+  expect(k("無変換").x).toBeGreaterThan(right);
+  expect(k("Home").x).toBeGreaterThan(k("半角/全角").x);
+  expect(k("Home").x).toBeLessThan(k("Num").x);
+  expect(k("↑").x).toBeLessThan(k("Num").x);
+  expect(k("Shift", "extras").y).toBeGreaterThanOrEqual(bottom);
+  const spaces = keys.filter((k) => k.shape === "space");
+  expect(spaces[1].x).toBeCloseTo(spaces[0].x);
+  expect(spaces[1].y).toBeGreaterThan(spaces[0].y);
+  expect(new Set(keys.map((k) => k.id))).toEqual(
+    new Set(study.kit!.map((k) => k.id)),
+  );
+  for (let i = 0; i < keys.length; i++)
+    for (const b of keys.slice(i + 1)) {
+      const a = keys[i];
+      expect(
+        Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 1e-6 &&
+          Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 1e-6,
+      ).toBe(false);
+    }
+});
