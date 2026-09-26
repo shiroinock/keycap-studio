@@ -259,26 +259,20 @@ function fullKitSheet(study: Study) {
       lowerY += rowHeight;
     }
   }
-  below(bottom);
-  if (jisBottom.length) {
-    const spaceIndex = jisBottom.findIndex(isJisSpace);
-    const beforeSpace =
-      spaceIndex < 0
-        ? 0
-        : jisBottom.slice(0, spaceIndex).reduce((sum, k) => sum + k.w, 0);
-    let x =
-      spaceIndex < 0
-        ? 1.4
-        : Math.max(
-            1.4,
-            (baseKeys.find((k) => k.shape === "space")?.x ?? 4.4) - beforeSpace,
-          );
-    labels.push({ x: 0, y: lowerY + 0.25, text: "JIS", width: 1.2 });
-    for (const k of jisBottom) {
+  const bottomVariants = [...bottom, ...jisBottom];
+  if (bottomVariants.length) {
+    let x = 1.4;
+    labels.push({
+      x: 0,
+      y: lowerY + 0.25,
+      text: rowName(bottomVariants[0].row, study.profile ?? defaultProfile),
+      width: 1.2,
+    });
+    for (const k of bottomVariants) {
       keys.push({ ...k, x, y: lowerY, rotation: 0 });
       x += k.w;
     }
-    lowerY += Math.max(...jisBottom.map((k) => k.h));
+    lowerY += Math.max(...bottomVariants.map((k) => k.h));
   }
   below(spaces, true);
   // Other row variants follow below the main block; the existing packer retains tall-key spans.
