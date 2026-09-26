@@ -90,7 +90,7 @@ export function keyMarkup(k: ResolvedKey, study: Study): string {
           .map(([x, y]) => `${x - 3},${y - 3}`)
           .join(" ")}" fill="${k.color}"/>`
       : `<rect width="${w}" height="${h}" rx="6" fill="${k.color}"/>`;
-  return `<g data-key-id="${k.id}" transform="translate(${x} ${y})">${face}${legendMarkup(k, study, w, h)}</g>`;
+  return `<g data-key-id="${esc(k.id)}" transform="translate(${x} ${y})">${face}${legendMarkup(k, study, w, h)}</g>`;
 }
 export function renderSvg(study: Study): string {
   const { width, height } = svgDimensions(study),

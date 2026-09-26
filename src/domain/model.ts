@@ -1,4 +1,11 @@
-import { profileIds, profileRowIndex, defaultProfile } from "./profiles";
+import { designKeyIds } from "./key-identity";
+import { kitSchema } from "./kit-schema";
+import {
+  profileIds,
+  profileRowIndex,
+  defaultProfile,
+  rowName,
+} from "./profiles";
 import { z } from "zod";
 import {
   ansi60,
@@ -39,6 +46,7 @@ export const studySchema = z
       };
       return typeof value === "string" ? (legacy[value] ?? value) : value;
     }, z.enum(profileIds).optional()),
+    kit: kitSchema.optional(),
     designKeys: z.record(z.string(), overrideSchema).optional(),
     layouts: z.array(layoutSchema).max(40).optional(),
     palette: z.object({ base: pair, modifier: pair, accent: pair }).strict(),
@@ -112,18 +120,32 @@ export function sameLayout(a: Study, b: Study): boolean {
   return layoutSignature(getLayout(a)) === layoutSignature(getLayout(b));
 }
 export function resolveKeys(study: Study): ResolvedKey[] {
-  return getLayout(study).keys.map((k) => {
+  const layout = getLayout(study),
+    identities = designKeyIds(layout);
+  return layout.keys.map((k) => {
     const o = study.overrides[k.id] ?? {};
-    const role = o.role ?? k.role;
+    const shape = k.shape ?? (k.id === "space" ? "space" : "standard");
+    const profile = study.profile ?? defaultProfile;
+    const row = profileRowIndex(k, layout, profile);
+    const owned = study.kit?.find(
+      (a) =>
+        a.identity === identities.get(k.id) &&
+        a.w === k.w &&
+        a.h === k.h &&
+        a.shape === shape &&
+        (shape === "space" ||
+          rowName(a.row, profile) === rowName(row, profile)),
+    );
+    const role = o.role ?? owned?.role ?? k.role;
     const pair = study.palette[role];
     return {
       ...k,
       role,
-      main: o.main ?? k.label,
-      sub: o.sub ?? k.sub,
-      color: o.color ?? pair.color,
-      ink: o.ink ?? pair.ink,
-      novelty: o.novelty ?? "none",
+      main: owned?.artwork?.main ?? o.main ?? k.label,
+      sub: owned?.artwork?.sub ?? o.sub ?? k.sub,
+      color: owned?.artwork?.color ?? o.color ?? pair.color,
+      ink: owned?.artwork?.ink ?? o.ink ?? pair.ink,
+      novelty: owned?.artwork?.novelty ?? o.novelty ?? "none",
       profileRow: profileRowIndex(
         k,
         getLayout(study),

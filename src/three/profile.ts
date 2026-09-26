@@ -12,7 +12,9 @@ export function keyDimensions(
 ) {
   const settings = profiles[profile];
   const row =
-    key.profileRow === -1 ? settings.functionRow : settings.rows[key.row];
+    key.profileRow === -1
+      ? (settings.functionRow ?? settings.rows[0])
+      : settings.rows[Math.max(0, key.row)];
   if (!row) throw new Error("プロファイルの行が不正です");
   const width = key.w * ansi60.pitchMm - (settings.widthGap ?? 0.9),
     depth = key.h * ansi60.pitchMm - (settings.depthGap ?? 0.9);

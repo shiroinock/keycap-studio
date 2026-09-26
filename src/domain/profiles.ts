@@ -392,9 +392,11 @@ export function profileRowIndex(
     : key.row;
 }
 export const rowName = (row: number, id: ProfileId) =>
-  row === -1
+  row === -1 && profiles[id].functionRow
     ? id === "kat"
       ? "R5"
       : "R0"
-    : (profiles[id].rowLabels?.[row] ??
-      (profiles[id].uniform ? "R0" : ["R1", "R2", "R3", "R4", "R4"][row]));
+    : (profiles[id].rowLabels?.[Math.max(0, row)] ??
+      (profiles[id].uniform
+        ? "R0"
+        : ["R1", "R2", "R3", "R4", "R4"][Math.max(0, row)]));

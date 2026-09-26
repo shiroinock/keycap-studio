@@ -1291,3 +1291,137 @@ dialog.export-dialog {
 .profile-info a {
   color: #875838;
 }
+
+.kit-editor {
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+  margin-top: 20px;
+}
+.kit-heading,
+.kit-actions {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.kit-heading {
+  justify-content: space-between;
+}
+.kit-heading h2 {
+  font-size: 18px;
+}
+.kit-heading span,
+.kit-status,
+.kit-note {
+  font-size: 12px;
+  color: #666;
+}
+.kit-editor label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+.kit-editor select,
+.kit-editor input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  max-width: 100%;
+  background: #fff;
+  color: #333;
+}
+.kit-editor button {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+.kit-editor button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.kit-status {
+  padding: 12px;
+  background: #eee;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.kit-editor .kit-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.kit-editor th,
+.kit-editor td {
+  text-align: left;
+  padding: 7px;
+  border-bottom: 1px solid #ddd;
+  white-space: nowrap;
+}
+.kit-add,
+.kit-key-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding: 16px 0;
+}
+.kit-add h3 {
+  width: 100%;
+  font-size: 14px;
+}
+.kit-add input[type="number"],
+.kit-key-fields input[type="number"] {
+  width: 90px;
+}
+.kit-flat {
+  position: relative;
+  margin: 16px 0;
+}
+.kit-flat img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.kit-flat .kit-hit {
+  position: absolute;
+  padding: 0;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 3px;
+}
+.kit-flat .kit-hit:hover,
+.kit-flat .kit-hit.selected {
+  border-color: #ab744f;
+}
+.kit-selection {
+  margin-top: 16px;
+}
+.kit-missing {
+  font-size: 12px;
+  margin: 15px 0;
+}
+.kit-empty {
+  padding: 60px 15px;
+  text-align: center;
+  color: #777;
+}
+@media (max-width: 600px) {
+  .kit-editor {
+    padding: 12px;
+  }
+  .kit-status {
+    align-items: start;
+    flex-direction: column;
+  }
+  .kit-selection select {
+    width: 100%;
+  }
+}

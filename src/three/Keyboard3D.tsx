@@ -1,3 +1,4 @@
+import type { SheetLabel } from "../domain/kit-sheet";
 import { profiles, defaultProfile } from "../domain/profiles";
 import { layoutSignature, type Layout } from "../domain/layout";
 import {
@@ -43,6 +44,9 @@ interface Props {
   onReady?: (fn: Capture3D | null) => void;
   onExport?: (blob: Blob, name: string) => void;
   exportWidth?: number;
+  bare?: boolean;
+  annotations?: SheetLabel[];
+  aspect?: number;
 }
 const Cap = memo(function Cap({
   data,
@@ -203,7 +207,43 @@ const Cap = memo(function Cap({
     </group>
   );
 });
+function SheetText({ label, layout }: { label: SheetLabel; layout: Layout }) {
+  const texture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil((label.width / 0.5) * 128);
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#555";
+    ctx.font = "48px sans-serif";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label.text, 0, 64, canvas.width);
+    const t = new CanvasTexture(canvas);
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  }, [label.text, label.width]);
+  useEffect(() => () => texture.dispose(), [texture]);
+  const pos = keyPosition(
+    { x: label.x, y: label.y, w: label.width, h: 0.5 },
+    layout,
+  );
+  return (
+    <mesh position={[pos[0], 0.04, pos[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry
+        args={[label.width * layout.pitchMm, 0.5 * layout.pitchMm]}
+      />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
 function Scene({
+  bare = false,
+  annotations = [],
+  aspect = VIEW_ASPECT,
   study,
   settings,
   onPose,
@@ -217,12 +257,21 @@ function Scene({
   onPose: Props["onPose"];
   onSelect: Props["onSelect"];
   onReady: Props["onReady"];
+  bare?: boolean;
+  annotations?: SheetLabel[];
+  aspect?: number;
   onCount: (n: number) => void;
   onFail: () => void;
 }) {
   const { camera, gl, scene, size, invalidate } = useThree();
   const layout = getLayout(study),
-    frameScale = layoutFrameScale(layout);
+    frameScale = bare
+      ? Math.max(
+          0.4,
+          (layout.width * layout.pitchMm) / (180 * aspect),
+          (layout.height * layout.pitchMm) / 180,
+        ) * (settings.projection === "orthographic" ? 1.12 : 1.5)
+      : layoutFrameScale(layout);
   const caseWidth = layout.width * layout.pitchMm + 8,
     caseDepth = layout.height * layout.pitchMm + 8;
   const grain = useMemo(createGrainTexture, []);
@@ -327,7 +376,7 @@ function Scene({
       const start = performance.now();
       try {
         gl.setPixelRatio(1);
-        gl.setSize(width, Math.round(width / VIEW_ASPECT), false);
+        gl.setSize(width, Math.round(width / aspect), false);
         gl.render(scene, camera);
         const blob = await new Promise<Blob>((resolve, reject) =>
           gl.domElement.toBlob(
@@ -349,7 +398,16 @@ function Scene({
     };
     onReady?.(capture);
     return () => onReady?.(null);
-  }, [readyCount, onReady, gl, scene, camera, invalidate, layout.keys.length]);
+  }, [
+    readyCount,
+    onReady,
+    gl,
+    scene,
+    camera,
+    invalidate,
+    layout.keys.length,
+    aspect,
+  ]);
   const lighting = settings.lighting;
   const reference = lighting === "reference";
   const neutral = lighting === "neutral";
@@ -397,27 +455,33 @@ function Scene({
           />
         </>
       )}
-      <mesh
-        position={[0, -4.8, 0]}
-        geometry={caseGeometry}
-        castShadow
-        receiveShadow
-      >
-        {reference ? (
-          <meshBasicMaterial color="#808080" toneMapped={false} fog={false} />
-        ) : neutral ? (
-          <meshLambertMaterial color="#808080" toneMapped={false} fog={false} />
-        ) : (
-          <meshStandardMaterial
-            color="#363a3d"
-            metalness={0.25}
-            roughness={0.42}
-          />
-        )}
-      </mesh>
+      {!bare && (
+        <mesh
+          position={[0, -4.8, 0]}
+          geometry={caseGeometry}
+          castShadow
+          receiveShadow
+        >
+          {reference ? (
+            <meshBasicMaterial color="#808080" toneMapped={false} fog={false} />
+          ) : neutral ? (
+            <meshLambertMaterial
+              color="#808080"
+              toneMapped={false}
+              fog={false}
+            />
+          ) : (
+            <meshStandardMaterial
+              color="#363a3d"
+              metalness={0.25}
+              roughness={0.42}
+            />
+          )}
+        </mesh>
+      )}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -8.85, 0]}
+        position={[0, bare ? 0 : -8.85, 0]}
         receiveShadow
       >
         <planeGeometry args={[3000 * frameScale, 3000 * frameScale]} />
@@ -429,7 +493,12 @@ function Scene({
           <meshStandardMaterial color="#e5e3df" roughness={0.95} />
         )}
       </mesh>
-      {!reference && <ContactShadow width={caseWidth} depth={caseDepth} />}
+      {!reference && !bare && (
+        <ContactShadow width={caseWidth} depth={caseDepth} />
+      )}
+      {annotations.map((label, i) => (
+        <SheetText key={i} label={label} layout={layout} />
+      ))}
       {keys.map((key) => (
         <Cap
           key={key.id}
@@ -471,6 +540,9 @@ export default function Keyboard3D({
   onReady,
   onExport,
   exportWidth = 2844,
+  bare = false,
+  annotations = [],
+  aspect = VIEW_ASPECT,
 }: Props) {
   const layout = getLayout(study);
   const [failed, setFailed] = useState(false);
@@ -500,7 +572,7 @@ export default function Keyboard3D({
   );
   return (
     <div className="three-panel" aria-label={`${study.name}の3Dプレビュー`}>
-      <div className="three-canvas" style={{ aspectRatio: VIEW_ASPECT }}>
+      <div className="three-canvas" style={{ aspectRatio: aspect }}>
         {failed ? (
           fallback
         ) : (
@@ -530,6 +602,9 @@ export default function Keyboard3D({
               }}
             >
               <Scene
+                bare={bare}
+                annotations={annotations}
+                aspect={aspect}
                 study={study}
                 settings={settings}
                 onPose={onPose}

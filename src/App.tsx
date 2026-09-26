@@ -1,3 +1,4 @@
+import KitEditor from "./components/KitEditor";
 import KitCoverage from "./components/KitCoverage";
 import { profiles, profileIds, defaultProfile } from "./domain/profiles";
 import {
@@ -80,7 +81,7 @@ export default function App() {
     (pose: CameraPose) => setSceneSettings((s) => ({ ...s, pose })),
     [],
   );
-  const [view, setView] = useState<"edit" | "compare">("edit");
+  const [view, setView] = useState<"edit" | "compare" | "kit">("edit");
   const [compareIds, setCompareIds] = useState(
     boot.studies.slice(0, 3).map((s) => s.id),
   );
@@ -182,6 +183,7 @@ export default function App() {
       next.concept = "";
       next.keywords = "";
       next.overrides = {};
+      next.kit = undefined;
       next.designKeys = next.schemaVersion === 3 ? {} : undefined;
       next.layouts = next.schemaVersion === 3 ? [getLayout(next)] : undefined;
     }
@@ -200,7 +202,7 @@ export default function App() {
     }
     update((s) => switchLayout(s, layout));
     setSelected(layout.keys[0].id);
-    setView("edit");
+    if (view === "compare") setView("edit");
     setKleOpen(false);
     setPresetOpen(false);
     setNotice(layout.name + "に切り替えました");
@@ -428,6 +430,12 @@ export default function App() {
               デザインを編集
             </button>
             <button
+              className={view === "kit" ? "active" : ""}
+              onClick={() => setView("kit")}
+            >
+              セット展開図
+            </button>
+            <button
               className={view === "compare" ? "active" : ""}
               onClick={() => setView("compare")}
             >
@@ -511,14 +519,24 @@ export default function App() {
             </a>
           )}
         </details>
-        <KitCoverage study={active} />
-        <SceneToolbar
-          mode={renderMode}
-          onMode={setRenderMode}
-          settings={sceneSettings}
-          onSettings={setSceneSettings}
-        />
-        {view === "edit" ? (
+
+        {view !== "kit" && <KitCoverage study={active} />}
+        {view !== "kit" && (
+          <SceneToolbar
+            mode={renderMode}
+            onMode={setRenderMode}
+            settings={sceneSettings}
+            onSettings={setSceneSettings}
+          />
+        )}
+        {view === "kit" ? (
+          <KitEditor
+            key={active.id}
+            study={active}
+            onChange={(kit) => update((s) => ({ ...s, kit }))}
+            onExport={setArtifact}
+          />
+        ) : view === "edit" ? (
           <>
             <section className="preview-panel">
               <div className="preview-heading">
