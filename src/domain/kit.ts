@@ -38,14 +38,14 @@ export function kitSignature(key: KitKey, study: Study) {
       : rowName(key.row, study.profile ?? defaultProfile),
   ]);
 }
-export function kitCoverage(study: Study) {
+export function kitCoverage(study: Study, layout: Layout = getLayout(study)) {
   const inventory = new Map<string, number>();
   for (const k of getKit(study)) {
     const signature = kitSignature(k, study);
     inventory.set(signature, (inventory.get(signature) ?? 0) + k.quantity);
   }
   const needs = new Map<string, { key: KitKey; needed: number }>();
-  for (const key of layoutKit(study)) {
+  for (const key of layoutKit(study, layout)) {
     const signature = kitSignature(key, study),
       existing = needs.get(signature);
     if (existing) existing.needed += key.quantity;
@@ -106,4 +106,22 @@ export function keyUsage(key: KitKey) {
     /* Custom key identities may be opaque. */
   }
   return "メイン";
+}
+
+/** Alternative layouts share keys; use the maximum deficit, not the sum. */
+export function missingKitKeys(study: Study, layouts: Layout[]): KitKey[] {
+  const missing = new Map<string, KitKey>();
+  for (const layout of layouts)
+    for (const item of kitCoverage(study, layout)) {
+      if (!item.missing) continue;
+      const previous = missing.get(item.signature);
+      if (!previous || previous.quantity < item.missing)
+        missing.set(item.signature, {
+          ...item.key,
+          quantity: item.missing,
+          group: item.key.group === "numpad" ? "numpad" : "extras",
+          placement: undefined,
+        });
+    }
+  return [...missing.values()];
 }

@@ -6,6 +6,7 @@ import {
   addKitKeys,
   layoutKit,
   kitSignature,
+  missingKitKeys,
 } from "./kit";
 import { switchLayout } from "./design-layout";
 import { layoutPresets } from "./presets";
@@ -318,4 +319,33 @@ it("compares ANSI and JIS at their exact preset coordinates with shared inventor
     resolveKeys(withExtra.study).find((k) => k.id === "extra:novelty-variant")!
       .color,
   ).toBe("#abcdef");
+});
+
+it("checks alternative layouts without mutating the preview and merges shared deficits", () => {
+  const study = structuredClone(samples[0]);
+  const before = JSON.stringify(study);
+  const targets = [
+    preset("preset-fullsize_ansi-v1"),
+    preset("preset-fullsize_jis-v1"),
+    preset("preset-hhkb-6u-v1"),
+  ];
+  const single = targets.flatMap((layout) => missingKitKeys(study, [layout]));
+  const merged = missingKitKeys(study, targets);
+  expect(merged.reduce((n, k) => n + k.quantity, 0)).toBeLessThan(
+    single.reduce((n, k) => n + k.quantity, 0),
+  );
+  expect(new Set(merged.map((k) => kitSignature(k, study))).size).toBe(
+    merged.length,
+  );
+  expect(merged.find((k) => k.label === "F1")!.quantity).toBe(1);
+  expect(merged.some((k) => k.shape === "space" && k.w === 6)).toBe(true);
+  expect(JSON.stringify(study)).toBe(before);
+  const updated = { ...study, kit: addKitKeys(study, merged) };
+  for (const layout of targets)
+    expect(kitCoverage(updated, layout).every((r) => !r.missing)).toBe(true);
+  expect(missingKitKeys(updated, targets)).toEqual([]);
+  expect(updated.layoutId).toBe(study.layoutId);
+  expect(updated.overrides).toEqual(study.overrides);
+  const restored = parseLibrary(serialize([updated])).studies[0];
+  expect(missingKitKeys(restored, targets)).toEqual([]);
 });

@@ -1425,3 +1425,31 @@ dialog.export-dialog {
     width: 100%;
   }
 }
+
+.layout-coverage {
+  margin: 20px 0;
+}
+.layout-coverage th,
+.layout-coverage td {
+  vertical-align: top;
+}
+.layout-coverage summary {
+  cursor: pointer;
+  padding-bottom: 8px;
+}
+.layout-missing-list {
+  padding: 0;
+  list-style: none;
+  min-width: 340px;
+}
+.layout-missing-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0;
+}
+.kit-actions button[aria-pressed="true"] {
+  background: #333;
+  color: white;
+}
