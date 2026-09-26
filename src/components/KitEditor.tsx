@@ -121,8 +121,7 @@ export default function KitEditor({
         <label>
           表示キット{" "}
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="all">ANSI / JIS 比較</option>
-            <option value="inventory">収録キー一覧</option>
+            <option value="all">収録キー一覧（すべて）</option>
             {groups.map(([id, name]) => (
               <option key={id} value={id}>
                 {name}

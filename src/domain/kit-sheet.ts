@@ -53,7 +53,7 @@ export interface KitSheet {
   sourceIds: Record<string, string>;
   missingIds: Set<string>;
 }
-function comparisonSheet(study: Study): KitSheet {
+function inventorySheet(study: Study): KitSheet {
   const inventory = getKit(study);
   const keys: LayoutKey[] = [],
     labels: SheetLabel[] = [],
@@ -156,7 +156,7 @@ function comparisonSheet(study: Study): KitSheet {
   const layout = {
     id: "kit-sheet",
     version: 1,
-    name: "ANSI / JIS 比較",
+    name: "収録キー一覧",
     pitchMm: 19.05,
     width,
     height: y,
@@ -171,7 +171,7 @@ function comparisonSheet(study: Study): KitSheet {
   };
 }
 export function kitSheet(study: Study, filter: string = "all"): KitSheet {
-  if (filter === "all") return comparisonSheet(study);
+  if (filter === "all") return inventorySheet(study);
   const kit = getKit(study).filter(
     (k) => filter === "inventory" || k.group === filter,
   );
