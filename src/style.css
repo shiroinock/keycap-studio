@@ -1503,3 +1503,34 @@ dialog.export-dialog {
   display: block;
   color: #666;
 }
+
+.set-actions {
+  display: flex;
+  gap: 12px;
+}
+.deletion-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 24px;
+  margin: 16px 0;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+.deletion-banner small {
+  display: block;
+  margin-top: 4px;
+  color: #666;
+}
+.deletion-banner button {
+  flex-shrink: 0;
+}
+.empty-library {
+  padding: 64px 24px;
+  max-width: 440px;
+  margin: auto;
+}
+.empty-library button {
+  margin: 12px 0;
+}

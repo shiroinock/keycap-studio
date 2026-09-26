@@ -99,7 +99,7 @@ export const studySchema = z
 export const librarySchema = z
   .object({
     schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-    studies: z.array(studySchema).min(1).max(200),
+    studies: z.array(studySchema).max(200),
   })
   .strict()
   .refine(
