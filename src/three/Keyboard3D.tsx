@@ -41,6 +41,7 @@ const Cap = memo(function Cap({
   data,
   study,
   roughness,
+  reference,
   grain,
   register,
   onFail,
@@ -49,6 +50,7 @@ const Cap = memo(function Cap({
   data: ResolvedKey;
   study: Study;
   roughness: number;
+  reference: boolean;
   grain: DataTexture;
   register: (id: string, ready: boolean) => void;
   onFail: () => void;
@@ -113,31 +115,57 @@ const Cap = memo(function Cap({
         }
       }}
     >
-      <mesh geometry={geometry.body} castShadow receiveShadow>
-        <meshPhysicalMaterial
-          bumpMap={grain}
-          bumpScale={roughness > 0.5 ? 0.018 : 0.008}
-          roughnessMap={grain}
-          ior={1.46}
-          envMapIntensity={0.65}
-          color={data.color}
-          roughness={roughness}
-          metalness={0}
-        />
+      <mesh
+        geometry={geometry.body}
+        castShadow={!reference}
+        receiveShadow={!reference}
+      >
+        {reference ? (
+          <meshBasicMaterial
+            color={data.color}
+            toneMapped={false}
+            fog={false}
+          />
+        ) : (
+          <meshPhysicalMaterial
+            bumpMap={grain}
+            bumpScale={roughness > 0.5 ? 0.018 : 0.008}
+            roughnessMap={grain}
+            ior={1.46}
+            envMapIntensity={0.65}
+            color={data.color}
+            roughness={roughness}
+            metalness={0}
+          />
+        )}
       </mesh>
-      <mesh geometry={geometry.top} castShadow receiveShadow>
-        <meshPhysicalMaterial
-          bumpMap={grain}
-          bumpScale={roughness > 0.5 ? 0.018 : 0.008}
-          roughnessMap={grain}
-          ior={1.46}
-          envMapIntensity={0.65}
-          key={texture?.uuid ?? "loading"}
-          color={texture ? "#ffffff" : data.color}
-          map={texture}
-          roughness={roughness}
-          metalness={0}
-        />
+      <mesh
+        geometry={geometry.top}
+        castShadow={!reference}
+        receiveShadow={!reference}
+      >
+        {reference ? (
+          <meshBasicMaterial
+            key={texture?.uuid ?? "loading"}
+            color={texture ? "#ffffff" : data.color}
+            map={texture}
+            toneMapped={false}
+            fog={false}
+          />
+        ) : (
+          <meshPhysicalMaterial
+            bumpMap={grain}
+            bumpScale={roughness > 0.5 ? 0.018 : 0.008}
+            roughnessMap={grain}
+            ior={1.46}
+            envMapIntensity={0.65}
+            key={texture?.uuid ?? "loading"}
+            color={texture ? "#ffffff" : data.color}
+            map={texture}
+            roughness={roughness}
+            metalness={0}
+          />
+        )}
       </mesh>
     </group>
   );
@@ -173,6 +201,11 @@ function Scene({
     [grain, caseGeometry],
   );
   useEffect(() => {
+    if (settings.lighting === "reference") {
+      scene.environment = null;
+      invalidate();
+      return;
+    }
     const environment = studioEnvironment(gl, settings.lighting);
     scene.environment = environment.texture;
     invalidate();
@@ -276,38 +309,51 @@ function Scene({
     return () => onReady?.(null);
   }, [readyCount, onReady, gl, scene, camera, invalidate]);
   const lighting = settings.lighting;
+  const reference = lighting === "reference";
   return (
     <>
       <color attach="background" args={["#e5e3df"]} />
-      <fog attach="fog" args={["#e5e3df", 650, 1800]} />
-      <hemisphereLight intensity={0.12} color="#e8efff" groundColor="#47433d" />
-      <directionalLight
-        position={lighting === "raking" ? [-180, 75, 35] : [-110, 210, 140]}
-        intensity={lighting === "soft" ? 1.1 : 1.6}
-        color="#fff4e7"
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-195}
-        shadow-camera-right={195}
-        shadow-camera-top={125}
-        shadow-camera-bottom={-125}
-        shadow-camera-near={1}
-        shadow-camera-far={650}
-        shadow-bias={-0.00012}
-        shadow-normalBias={0.08}
-        shadow-radius={lighting === "soft" ? 5 : 3}
-      />
+      {!reference && (
+        <>
+          <fog attach="fog" args={["#e5e3df", 650, 1800]} />
+          <hemisphereLight
+            intensity={0.12}
+            color="#e8efff"
+            groundColor="#47433d"
+          />
+          <directionalLight
+            position={lighting === "raking" ? [-180, 75, 35] : [-110, 210, 140]}
+            intensity={lighting === "soft" ? 1.1 : 1.6}
+            color="#fff4e7"
+            castShadow
+            shadow-mapSize={[2048, 2048]}
+            shadow-camera-left={-195}
+            shadow-camera-right={195}
+            shadow-camera-top={125}
+            shadow-camera-bottom={-125}
+            shadow-camera-near={1}
+            shadow-camera-far={650}
+            shadow-bias={-0.00012}
+            shadow-normalBias={0.08}
+            shadow-radius={lighting === "soft" ? 5 : 3}
+          />
+        </>
+      )}
       <mesh
         position={[0, -4.8, 0]}
         geometry={caseGeometry}
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial
-          color="#363a3d"
-          metalness={0.25}
-          roughness={0.42}
-        />
+        {reference ? (
+          <meshBasicMaterial color="#808080" toneMapped={false} fog={false} />
+        ) : (
+          <meshStandardMaterial
+            color="#363a3d"
+            metalness={0.25}
+            roughness={0.42}
+          />
+        )}
       </mesh>
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
@@ -315,9 +361,13 @@ function Scene({
         receiveShadow
       >
         <planeGeometry args={[3000, 3000]} />
-        <meshStandardMaterial color="#e5e3df" roughness={0.95} />
+        {reference ? (
+          <meshBasicMaterial color="#e5e3df" toneMapped={false} fog={false} />
+        ) : (
+          <meshStandardMaterial color="#e5e3df" roughness={0.95} />
+        )}
       </mesh>
-      <ContactShadow />
+      {!reference && <ContactShadow />}
       {keys.map((key) => (
         <Cap
           key={key.id}
@@ -325,6 +375,7 @@ function Scene({
           study={study}
           roughness={settings.material === "matte" ? 0.68 : 0.38}
           grain={grain}
+          reference={reference}
           register={register}
           onFail={onFail}
           onSelect={onSelect}
@@ -432,7 +483,9 @@ export default function Keyboard3D({
         </span>
         <span>
           {settings.projection === "perspective" ? "PHOTO" : "ORTHO"} ·{" "}
-          {settings.lighting} / {settings.material}
+          {settings.lighting === "reference"
+            ? "色確認 · 陰影なし"
+            : `${settings.lighting} / ${settings.material}`}
         </span>
         {onExport && (
           <button

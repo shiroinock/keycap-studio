@@ -55,7 +55,7 @@ export function keyMarkup(k: ResolvedKey, study: Study): string {
     y = PAD + k.y * UNIT + 3,
     w = k.w * UNIT - 6,
     h = k.h * UNIT - 6;
-  return `<g data-key-id="${k.id}" transform="translate(${x} ${y})"><rect width="${w}" height="${h}" rx="6" fill="${k.color}"/><rect x="4" y="3" width="${w - 8}" height="${h - 9}" rx="4" fill="white" fill-opacity=".11"/><path d="M5 ${h - 6}H${w - 5}" stroke="black" stroke-opacity=".09" stroke-width="3" stroke-linecap="round"/>${legendMarkup(k, study, w, h)}</g>`;
+  return `<g data-key-id="${k.id}" transform="translate(${x} ${y})"><rect width="${w}" height="${h}" rx="6" fill="${k.color}"/>${legendMarkup(k, study, w, h)}</g>`;
 }
 export function renderSvg(study: Study): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${esc(study.name)}"><title>${esc(study.name)} — ANSI 60%</title><rect x="6" y="9" width="936" height="334" rx="15" fill="#000" opacity=".08"/><rect x="6" y="4" width="936" height="334" rx="15" fill="#D1D1CF"/><rect x="12" y="10" width="924" height="322" rx="11" fill="#BDBDBB"/>${resolveKeys(

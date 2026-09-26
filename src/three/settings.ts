@@ -2,7 +2,7 @@ export type CameraPose = { position: [number, number, number]; zoom: number };
 export type SceneSettings = {
   pose: CameraPose;
   projection: "perspective" | "orthographic";
-  lighting: "studio" | "soft" | "raking";
+  lighting: "studio" | "soft" | "raking" | "reference";
   material: "matte" | "satin";
 };
 export const ANGLED: CameraPose = { position: [130, 240, 260], zoom: 1 };

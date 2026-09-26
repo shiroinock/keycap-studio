@@ -18,7 +18,7 @@
 - `studio.ts`のローカル生成ソフトボックスをPMREMに変換し、照明プリセットごとに環境光・反射を生成。外部HDRI・フォント・モデルを取得しない。
 - MeshPhysicalMaterial、IOR 1.46、金属度0。マット／サテンは粗さ0.68／0.38。seed固定の128pxグレインを色テクスチャとは別のuv1に貼り、粗さと微細バンプに使用する。実測PBT/ABSの再現ではない。
 - 2048pxのPCFシャドウ、独自の解析的なケース下接地影を併用。後者は丸角矩形の距離に応じた減衰で、SSAOやレイトレースではない。
-- ACESFilmic、露出0.9、色テクスチャsRGB。低い視点では背景へフォグでつなぐ。PNGと画面で同じ色管理を使用。
+- 通常照明はACESFilmic、露出0.9、色テクスチャsRGB。低い視点では背景へフォグでつなぐ。PNGと画面で同じ色管理を使用。
 - 比較案は同じ投影方式・位置・ズーム・照明を共有。テクスチャと環境マップは各Canvas内で生成し、アンマウント時に破棄。停止中はdemand描画でGPU処理を休止する。
 - コードはThree.js標準機能と公式addonsを利用。追加npm依存なし。 [PMREMGenerator](https://threejs.org/docs/pages/PMREMGenerator.html) / [MeshStandardMaterial](https://threejs.org/docs/pages/MeshStandardMaterial.html)
 
@@ -71,3 +71,9 @@ glTF/GLBは形状・UV・基本的なPBR材質を受け渡す候補。Three.js�
 - [Blender glTF 2.0 import/export](https://docs.blender.org/manual/en/latest/addons/import_export/scene_gltf2.html)
 
 実装時に採用バージョンの資料で仕様を再確認する。
+
+## 色確認モード
+
+`reference`ではキーをMeshBasicMaterial、toneMapped=false、fog=falseで描画する。環境マップ、照明、接地影は外し、色テクスチャのsRGB指定は維持する。通常の材質と色確認用材質を切り替え、元の粗さ設定を保持する。renderer全体の露出設定を書き換えないので通常照明に戻した際の状態漏れを防ぐ。
+
+2Dのキーにあった白11%のハイライトと黒9%の下端線、ホバー時の白い面を削除。選択・ホバーは枠線で示す。キーの塗りと文字には共通データの指定色だけを使う。

@@ -94,6 +94,7 @@ export default function SceneToolbar({
                 })
               }
             >
+              <option value="reference">色確認（陰影なし）</option>
               <option value="studio">スタジオ</option>
               <option value="soft">柔らかい光</option>
               <option value="raking">サイドライト</option>
@@ -102,6 +103,7 @@ export default function SceneToolbar({
           <label>
             質感
             <select
+              disabled={settings.lighting === "reference"}
               value={settings.material}
               onChange={(e) =>
                 onSettings({
@@ -114,7 +116,11 @@ export default function SceneToolbar({
               <option value="satin">サテン</option>
             </select>
           </label>
-          <span className="scene-help">ドラッグで回転 · スクロールで拡大</span>
+          <span className="scene-help">
+            {settings.lighting === "reference"
+              ? "指定色を表示 · 照明・陰影・色調補正なし"
+              : "ドラッグで回転 · スクロールで拡大"}
+          </span>
         </>
       )}
     </div>
