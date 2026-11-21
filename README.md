@@ -97,14 +97,15 @@ pnpm dev
 ## 開発・検証
 
 ```sh
-pnpm test      # データ・配列・SVG・保存のテスト
+pnpm test     # データ・配列・SVG・保存のテスト
 pnpm check    # TypeScript
+pnpm lint     # Biome による lint と整形の確認
+pnpm format   # Biome で整形（安全な修正も適用）
 pnpm build    # 型チェック＋本番ビルド
 pnpm preview  # ビルド結果をローカルで確認
-pnpm format    # コード整形
 ```
 
-CIでも `pnpm install --frozen-lockfile`、`pnpm test`、`pnpm build` を実行します。
+CIでも `pnpm install --frozen-lockfile`、`pnpm lint`、`pnpm test`、`pnpm build` を実行します。
 
 - [検証記録](docs/verification.md)
 - [ロードマップ](ROADMAP.md)
