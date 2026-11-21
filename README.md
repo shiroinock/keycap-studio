@@ -6,11 +6,11 @@
 
 ## 起動
 
-Node.js 22.12以降（Node 22推奨）とnpmが必要です。
+Node.js 24とpnpm 10が必要です（pnpmの版は `package.json` の `packageManager` で固定。`corepack enable` で揃います）。
 
 ```sh
-npm ci
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 [http://127.0.0.1:5173](http://127.0.0.1:5173) をブラウザで開きます。停止はターミナルでCtrl+C。サーバーはループバックのみに接続し、ポート5173が使用中の場合はエラーにします。別ポートを使うとブラウザ保存先も変わります。
@@ -97,14 +97,14 @@ npm run dev
 ## 開発・検証
 
 ```sh
-npm test          # データ・配列・SVG・保存のテスト
-npm run check     # TypeScript
-npm run build     # 型チェック＋本番ビルド
-npm run preview   # ビルド結果をローカルで確認
-npm run format    # コード整形
+pnpm test      # データ・配列・SVG・保存のテスト
+pnpm check    # TypeScript
+pnpm build    # 型チェック＋本番ビルド
+pnpm preview  # ビルド結果をローカルで確認
+pnpm format    # コード整形
 ```
 
-CIでも `npm ci`、`npm test`、`npm run build` を実行します。
+CIでも `pnpm install --frozen-lockfile`、`pnpm test`、`pnpm build` を実行します。
 
 - [検証記録](docs/verification.md)
 - [ロードマップ](ROADMAP.md)
@@ -202,4 +202,4 @@ Studio Sculpted v2は独自の検討用概形です。メーカーの実測形�
 
 セットの保存先は利用中ブラウザのサイト別領域です。ローカル開発版のデータは公開サイトへ自動移行されません。ローカル版からJSONを保存し、公開サイトで読み込んで移行できます。公開サイトから編集内容をGitHubへ送信する機能はありません。
 
-ローカル開発は従来どおり `npm run dev`。Pages相当のビルドは `VITE_BASE_PATH=/keycap-studio/ npm run build`。
+ローカル開発は従来どおり `pnpm dev`。Pages相当のビルドは `VITE_BASE_PATH=/keycap-studio/ pnpm build`。
