@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Study } from "../domain/model";
-import type { KitKey } from "../domain/kit-schema";
 import { availableLayouts } from "../domain/design-layout";
-import { kitCoverage, missingKitKeys, keyUsage, planKit } from "../domain/kit";
+import { keyUsage, kitCoverage, missingKitKeys, planKit } from "../domain/kit";
+import type { KitKey } from "../domain/kit-schema";
+import type { Study } from "../domain/model";
 import { defaultProfile, rowName } from "../domain/profiles";
 export default function LayoutCoverage({
   study,

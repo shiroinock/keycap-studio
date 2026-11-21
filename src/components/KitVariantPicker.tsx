@@ -1,11 +1,11 @@
+import { kitArtwork } from "../domain/kit";
+import { kitGroups } from "../domain/kit-sheet";
 import {
   compatibleKitKeys,
   getLayout,
-  selectKitVariant,
   type Study,
+  selectKitVariant,
 } from "../domain/model";
-import { kitArtwork } from "../domain/kit";
-import { kitGroups } from "../domain/kit-sheet";
 export default function KitVariantPicker({
   study,
   keyId,

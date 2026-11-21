@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { switchLayout } from "../domain/design-layout";
 import { parseKLE } from "../domain/kle";
 import type { Layout } from "../domain/layout";
-import { switchLayout } from "../domain/design-layout";
 import type { Study } from "../domain/model";
 import Keyboard from "./Keyboard";
 export default function KLEImportDialog({

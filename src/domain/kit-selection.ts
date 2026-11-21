@@ -1,4 +1,4 @@
-import { kitKeySchema, type KitKey } from "./kit-schema";
+import { type KitKey, kitKeySchema } from "./kit-schema";
 import type { LayoutKey } from "./layout";
 export type BulkKitPatch = {
   color?: string;

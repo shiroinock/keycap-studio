@@ -1,25 +1,26 @@
+import { z } from "zod";
 import {
-  customArtSchema,
   artworkAssetsSchema,
   type CustomArt,
+  customArtSchema,
 } from "./custom-art";
 import { designKeyIds } from "./key-identity";
 import { kitSchema } from "./kit-schema";
 import {
-  profileIds,
-  profileRowIndex,
-  defaultProfile,
-  rowName,
-} from "./profiles";
-import { z } from "zod";
-import {
   ansi60,
-  layoutSchema,
-  layoutSignature,
+  type KeyRole,
   type Layout,
   type LayoutKey,
-  type KeyRole,
+  layoutSchema,
+  layoutSignature,
 } from "./layout";
+import {
+  defaultProfile,
+  profileIds,
+  profileRowIndex,
+  rowName,
+} from "./profiles";
+
 const color = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const text = z.string().max(80);
 export const noveltyIds = ["none", "sun", "moon", "spark", "wave"] as const;

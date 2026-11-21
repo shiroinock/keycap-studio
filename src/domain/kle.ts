@@ -1,5 +1,6 @@
 import { Serial } from "@ijprest/kle-serial";
-import { validateLayout, type Layout, type LayoutKey } from "./layout";
+import { type Layout, type LayoutKey, validateLayout } from "./layout";
+
 const object = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const numeric = new Set([

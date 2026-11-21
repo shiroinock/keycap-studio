@@ -1,19 +1,20 @@
-import { it, expect } from "vitest";
-import {
-  samples,
-  compatibleKitKeys,
-  selectKitVariant,
-  resolveKeys,
-  parseLibrary,
-  duplicateStudy,
-} from "./model";
-import { getKit, addKitKeys } from "./kit";
-import { switchLayout } from "./design-layout";
-import { layoutPresets } from "./presets";
-import { serialize } from "../storage/library";
+import { expect, it } from "vitest";
 import { renderSvg } from "../renderer/svg";
+import { serialize } from "../storage/library";
+import { switchLayout } from "./design-layout";
+import { addKitKeys, getKit } from "./kit";
+import {
+  compatibleKitKeys,
+  duplicateStudy,
+  parseLibrary,
+  resolveKeys,
+  samples,
+  selectKitVariant,
+} from "./model";
+import { layoutPresets } from "./presets";
+
 it("saves a variant per layout and preserves inventory and unrelated selections", () => {
-  let s = { ...structuredClone(samples[0]), kit: getKit(samples[0]) };
+  const s = { ...structuredClone(samples[0]), kit: getKit(samples[0]) };
   const esc = s.kit.find((k) => k.label === "Esc")!;
   s.kit = addKitKeys(s, [
     {

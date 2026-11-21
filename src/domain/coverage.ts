@@ -1,5 +1,5 @@
 import { getLayout, type Study } from "./model";
-import { defaultProfile, rowName, profileRowIndex } from "./profiles";
+import { defaultProfile, profileRowIndex, rowName } from "./profiles";
 export function coverage(study: Study) {
   const current = getLayout(study);
   const layouts = [current, ...(study.layouts ?? [])].filter(

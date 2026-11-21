@@ -1,9 +1,10 @@
-import { expect, it } from "vitest";
 import { OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
-import { configureCamera } from "./camera";
-import { ANGLED, TOP, VIEW_ASPECT } from "./settings";
+import { expect, it } from "vitest";
 import { ansi60 } from "../domain/layout";
+import { configureCamera } from "./camera";
 import { createKeyGeometry, keyPosition } from "./profile";
+import { ANGLED, TOP, VIEW_ASPECT } from "./settings";
+
 it("fits all 61 keys and the case within the default photo and top-view frame", () => {
   for (const [cam, pose] of [
     [new PerspectiveCamera(), ANGLED],

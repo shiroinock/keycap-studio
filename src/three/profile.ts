@@ -1,8 +1,8 @@
-import { profiles, defaultProfile, type ProfileId } from "../domain/profiles";
-import { createEnterGeometry } from "./enter-geometry";
 import { BufferGeometry, Float32BufferAttribute } from "three";
-import type { ResolvedKey } from "../domain/model";
 import { ansi60, type Layout } from "../domain/layout";
+import type { ResolvedKey } from "../domain/model";
+import { defaultProfile, type ProfileId, profiles } from "../domain/profiles";
+import { createEnterGeometry } from "./enter-geometry";
 // Visual approximations, millimetres. Not manufacturer-compatible CAD.
 export const ROWS = profiles[defaultProfile].rows;
 export function keyDimensions(

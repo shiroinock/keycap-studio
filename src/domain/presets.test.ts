@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { layoutPresets } from "./presets";
-import { layoutSchema } from "./layout";
-import { samples, parseLibrary, resolveKeys, sameLayout } from "./model";
-import { serialize } from "../storage/library";
 import { renderSvg } from "../renderer/svg";
+import { serialize } from "../storage/library";
+import { layoutSchema } from "./layout";
+import { parseLibrary, resolveKeys, sameLayout, samples } from "./model";
+import { layoutPresets } from "./presets";
+
 describe("layout presets", () => {
   it("validates every preset and preserves geometry through saved studies", () => {
     expect(new Set(layoutPresets.map((p) => p.layout.id)).size).toBe(

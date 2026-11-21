@@ -1,4 +1,4 @@
-import { OrthographicCamera, PerspectiveCamera } from "three";
+import { OrthographicCamera, type PerspectiveCamera } from "three";
 import type { CameraPose } from "./settings";
 export const PHOTO_FOV = 32;
 export function configureCamera(

@@ -1,25 +1,26 @@
-import { it, expect } from "vitest";
+import { OrthographicCamera, PerspectiveCamera, Vector3 } from "three";
+import { expect, it } from "vitest";
+import { pngDimensions, renderSvg, svgDimensions } from "../renderer/svg";
+import {
+  LEGACY_STORAGE_KEY,
+  loadLibrary,
+  STORAGE_KEY,
+  saveLibrary,
+  serialize,
+} from "../storage/library";
+import { configureCamera, layoutFrameScale } from "../three/camera";
+import { createKeyGeometry, keyPosition } from "../three/profile";
+import { ANGLED, TOP, VIEW_ASPECT } from "../three/settings";
 import { parseKLE } from "./kle";
 import {
-  samples,
-  resolveKeys,
-  parseLibrary,
   duplicateStudy,
-  sameLayout,
+  parseLibrary,
+  resolveKeys,
   type Study,
+  sameLayout,
+  samples,
 } from "./model";
-import {
-  serialize,
-  loadLibrary,
-  saveLibrary,
-  STORAGE_KEY,
-  LEGACY_STORAGE_KEY,
-} from "../storage/library";
-import { renderSvg, svgDimensions, pngDimensions } from "../renderer/svg";
-import { createKeyGeometry, keyPosition } from "../three/profile";
-import { configureCamera, layoutFrameScale } from "../three/camera";
-import { ANGLED, TOP, VIEW_ASPECT } from "../three/settings";
-import { PerspectiveCamera, OrthographicCamera, Vector3 } from "three";
+
 const fixture = [
   { name: "テスト配列" },
   ["Esc", { w: 1.5 }, "Tab", { x: 0.5, h: 2 }, "Enter"],

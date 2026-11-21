@@ -1,33 +1,34 @@
+import { lazy, Suspense, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import CustomArtwork from "./CustomArtwork";
 import type { ArtworkAsset } from "../domain/custom-art";
-import HexInput from "./HexInput";
-import LayoutCoverage from "./LayoutCoverage";
-import KitSheet2D from "./KitSheet2D";
+import { availableLayouts } from "../domain/design-layout";
+import {
+  addKitKeys,
+  getKit,
+  keyUsage,
+  kitArtwork,
+  kitCoverage,
+  kitSignature,
+  layoutKit,
+} from "../domain/kit";
+import { type KitKey, kitKeySchema } from "../domain/kit-schema";
 import {
   patchKitSelection,
   rangeSelection,
   sheetOrder,
 } from "../domain/kit-selection";
-import { layoutPresets } from "../domain/presets";
-import { kitSignature } from "../domain/kit";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { kitGroups, kitSheet, renderKitSvg } from "../domain/kit-sheet";
 import type { Study } from "../domain/model";
-import {
-  getKit,
-  kitCoverage,
-  addKitKeys,
-  kitArtwork,
-  keyUsage,
-  layoutKit,
-} from "../domain/kit";
-import { kitKeySchema, type KitKey } from "../domain/kit-schema";
-import { kitSheet, renderKitSvg, kitGroups } from "../domain/kit-sheet";
-import { defaultProfile, rowName, profiles } from "../domain/profiles";
-import { availableLayouts } from "../domain/design-layout";
+import { layoutPresets } from "../domain/presets";
+import { defaultProfile, profiles, rowName } from "../domain/profiles";
+import { PAD, safeName, UNIT } from "../renderer/svg";
 import type { SceneSettings } from "../three/settings";
+import CustomArtwork from "./CustomArtwork";
 import type { ExportArtifact } from "./ExportDialog";
-import { safeName, UNIT, PAD } from "../renderer/svg";
+import HexInput from "./HexInput";
+import KitSheet2D from "./KitSheet2D";
+import LayoutCoverage from "./LayoutCoverage";
+
 const Keyboard3D = lazy(() => import("../three/Keyboard3D"));
 export default function KitEditor({
   study,

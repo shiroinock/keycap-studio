@@ -1,11 +1,11 @@
-import type { Study } from "./model";
+import { esc, keyMarkup, PAD, UNIT } from "../renderer/svg";
+import { getKit, kitArtwork, kitSignature, layoutKit } from "./kit";
 import type { KitKey } from "./kit-schema";
 import type { LayoutKey } from "./layout";
-import { layoutPresets } from "./presets";
-import { getKit, kitArtwork, layoutKit, kitSignature } from "./kit";
-import { defaultProfile, rowName } from "./profiles";
-import { esc, keyMarkup, UNIT, PAD } from "../renderer/svg";
+import type { Study } from "./model";
 import { resolveKeys } from "./model";
+import { layoutPresets } from "./presets";
+import { defaultProfile, rowName } from "./profiles";
 export const kitGroups = {
   base: "ベース",
   extras: "追加キー",

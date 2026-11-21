@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ansi60 } from "../domain/layout";
-import { samples, resolveKeys } from "../domain/model";
-import { createKeyGeometry, keyDimensions, keyPosition, ROWS } from "./profile";
-import { textureSource } from "./artwork";
+import { resolveKeys, samples } from "../domain/model";
 import { legendMarkup } from "../renderer/svg";
+import { textureSource } from "./artwork";
+import { createKeyGeometry, keyDimensions, keyPosition, ROWS } from "./profile";
+
 describe("3D geometry and artwork", () => {
   it("maps every key center and size from the 2D layout at the same pitch", () => {
     for (const k of ansi60.keys) {

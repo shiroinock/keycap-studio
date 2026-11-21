@@ -1,8 +1,8 @@
-import { getLayout, type Study } from "./model";
-import type { Layout } from "./layout";
 import { designKeyIds } from "./key-identity";
-import { defaultProfile, profileRowIndex, rowName } from "./profiles";
 import type { KitKey } from "./kit-schema";
+import type { Layout } from "./layout";
+import { getLayout, type Study } from "./model";
+import { defaultProfile, profileRowIndex, rowName } from "./profiles";
 export function layoutKit(
   study: Study,
   layout: Layout = getLayout(study),

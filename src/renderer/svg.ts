@@ -1,9 +1,9 @@
 import { enterOutline } from "../domain/key-shape";
 import {
-  resolveKeys,
   getLayout,
-  type Study,
   type ResolvedKey,
+  resolveKeys,
+  type Study,
 } from "../domain/model";
 export const UNIT = 60,
   PAD = 24,

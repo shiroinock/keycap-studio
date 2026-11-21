@@ -1,8 +1,8 @@
-import { useRef, useState, type PointerEvent } from "react";
+import { type PointerEvent, useRef, useState } from "react";
 import { enterClipPath } from "../domain/key-shape";
-import type { KitSheet } from "../domain/kit-sheet";
 import { boxSelection } from "../domain/kit-selection";
-import { UNIT, PAD } from "../renderer/svg";
+import type { KitSheet } from "../domain/kit-sheet";
+import { PAD, UNIT } from "../renderer/svg";
 export default function KitSheet2D({
   sheet,
   svg,

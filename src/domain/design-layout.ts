@@ -1,9 +1,8 @@
-import { type Layout } from "./layout";
-import { getLayout, type Study, type KeyOverride } from "./model";
-import { layoutPresets } from "./presets";
-
 import { designKeyIds } from "./key-identity";
 import { getKit } from "./kit";
+import type { Layout } from "./layout";
+import { getLayout, type KeyOverride, type Study } from "./model";
+import { layoutPresets } from "./presets";
 export function switchLayout(study: Study, target: Layout): Study {
   const source = getLayout(study);
   const bank: Record<string, KeyOverride> = structuredClone(

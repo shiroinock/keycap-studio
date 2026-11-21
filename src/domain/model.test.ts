@@ -1,14 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { renderSvg } from "../renderer/svg";
+import { loadLibrary, saveLibrary, serialize } from "../storage/library";
 import { ansi60, validateLayout } from "./layout";
 import {
-  samples,
-  parseLibrary,
-  resolveKeys,
   duplicateStudy,
   mergeLibraries,
+  parseLibrary,
+  resolveKeys,
+  samples,
 } from "./model";
-import { renderSvg } from "../renderer/svg";
-import { serialize, saveLibrary, loadLibrary } from "../storage/library";
+
 describe("ANSI 60% geometry", () => {
   it("has the standard 61 keys with five complete 15u rows", () => {
     expect(ansi60.keys).toHaveLength(61);

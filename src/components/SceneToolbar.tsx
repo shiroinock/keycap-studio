@@ -1,4 +1,4 @@
-import { ANGLED, TOP, type SceneSettings } from "../three/settings";
+import { ANGLED, type SceneSettings, TOP } from "../three/settings";
 export default function SceneToolbar({
   mode,
   onMode,

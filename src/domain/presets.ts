@@ -1,4 +1,4 @@
-import { ansi60, validateLayout, type Layout, type LayoutKey } from "./layout";
+import { ansi60, type Layout, type LayoutKey, validateLayout } from "./layout";
 import geometry from "./preset-geometry.json";
 export interface LayoutPreset {
   layout: Layout;
