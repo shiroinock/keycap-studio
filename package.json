@@ -12,7 +12,7 @@
     "format": "prettier --write src vite.config.ts tsconfig.json"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24"
   },
   "dependencies": {
     "@ijprest/kle-serial": "^0.15.1",
