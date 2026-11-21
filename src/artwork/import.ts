@@ -1,4 +1,4 @@
-import { artworkAssetSchema, type ArtworkAsset } from "../domain/custom-art";
+import { type ArtworkAsset, artworkAssetSchema } from "../domain/custom-art";
 /** Only static, self-contained SVG artwork is accepted before rasterization. */
 export function staticSvg(raw: string) {
   const doc = new DOMParser().parseFromString(raw, "image/svg+xml");

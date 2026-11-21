@@ -1,19 +1,20 @@
-import { it, expect } from "vitest";
-import { samples, parseLibrary, resolveKeys, duplicateStudy } from "./model";
+import { expect, it } from "vitest";
+import { serialize } from "../storage/library";
+import { createKeyGeometry } from "../three/profile";
+import { switchLayout } from "./design-layout";
 import {
+  addKitKeys,
   getKit,
   kitCoverage,
-  addKitKeys,
-  layoutKit,
   kitSignature,
+  layoutKit,
   missingKitKeys,
   planKit,
 } from "./kit";
-import { switchLayout } from "./design-layout";
-import { layoutPresets } from "./presets";
-import { serialize } from "../storage/library";
 import { kitSheet, renderKitSvg } from "./kit-sheet";
-import { createKeyGeometry } from "../three/profile";
+import { duplicateStudy, parseLibrary, resolveKeys, samples } from "./model";
+import { layoutPresets } from "./presets";
+
 const preset = (id: string) =>
   layoutPresets.find((p) => p.layout.id === id)!.layout;
 it("keeps inventory separate from previews and adds only missing variants", () => {

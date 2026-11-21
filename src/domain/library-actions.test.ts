@@ -1,7 +1,8 @@
 import { expect, it } from "vitest";
-import { samples } from "./model";
-import { restoreStudy } from "./library-actions";
 import { loadLibrary, saveLibrary } from "../storage/library";
+import { restoreStudy } from "./library-actions";
+import { samples } from "./model";
+
 it("persists an empty library without reverting to missing storage", () => {
   const store = new Map<string, string>();
   saveLibrary(

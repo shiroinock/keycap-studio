@@ -1,14 +1,15 @@
 import { expect, it } from "vitest";
-import { samples, parseLibrary } from "./model";
-import { getKit } from "./kit";
-import { kitSheet } from "./kit-sheet";
 import { serialize } from "../storage/library";
+import { getKit } from "./kit";
 import {
-  patchKitSelection,
-  sheetOrder,
-  rangeSelection,
   boxSelection,
+  patchKitSelection,
+  rangeSelection,
+  sheetOrder,
 } from "./kit-selection";
+import { kitSheet } from "./kit-sheet";
+import { parseLibrary, samples } from "./model";
+
 it("updates only selected properties and preserves legends, variants, quantities and unrelated keys", () => {
   const study = structuredClone(samples[0]);
   const kit = getKit(study);

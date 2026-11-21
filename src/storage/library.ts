@@ -1,4 +1,4 @@
-import { parseLibrary, type Study, type Library } from "../domain/model";
+import { type Library, parseLibrary, type Study } from "../domain/model";
 export const STORAGE_KEY = "keycap-studio.library.v2";
 export const LEGACY_STORAGE_KEY = "keycap-studio.library.v1";
 export function serialize(studies: Study[]): string {

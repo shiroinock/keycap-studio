@@ -1,9 +1,10 @@
-import { expect, it } from "vitest";
 import { Vector3 } from "three";
-import { layoutPresets } from "./presets";
-import { validateLayout } from "./layout";
-import { parseKLE } from "./kle";
+import { expect, it } from "vitest";
 import { createKeyGeometry } from "../three/profile";
+import { parseKLE } from "./kle";
+import { validateLayout } from "./layout";
+import { layoutPresets } from "./presets";
+
 const find = (id: string) =>
   layoutPresets.find((p) => p.layout.id === id)!.layout;
 it("includes HHKB 6u and six regional layouts with correct clusters", () => {

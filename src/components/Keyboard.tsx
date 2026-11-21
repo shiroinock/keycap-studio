@@ -1,8 +1,8 @@
-import { enterClipPath } from "../domain/key-shape";
 import { useMemo } from "react";
+import { enterClipPath } from "../domain/key-shape";
 
 import { getLayout, type Study } from "../domain/model";
-import { svgUrl, svgDimensions, UNIT, PAD } from "../renderer/svg";
+import { PAD, svgDimensions, svgUrl, UNIT } from "../renderer/svg";
 export default function Keyboard({
   study,
   selected,

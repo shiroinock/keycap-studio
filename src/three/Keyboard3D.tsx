@@ -1,46 +1,47 @@
-import { settledUpdate } from "./settled-update";
-import type { SheetLabel } from "../domain/kit-sheet";
-import { profiles, defaultProfile } from "../domain/profiles";
-import { layoutSignature, type Layout } from "../domain/layout";
+import { Canvas, useThree } from "@react-three/fiber";
 import {
   Component,
   memo,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
 import {
-  CanvasTexture,
-  SRGBColorSpace,
-  OrthographicCamera,
-  Vector2,
-  PerspectiveCamera,
-  DataTexture,
   ACESFilmicToneMapping,
+  CanvasTexture,
+  type DataTexture,
+  type OrthographicCamera,
+  type PerspectiveCamera,
+  SRGBColorSpace,
+  Vector2,
 } from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import type { SheetLabel } from "../domain/kit-sheet";
+import { type Layout, layoutSignature } from "../domain/layout";
+import {
+  getLayout,
+  type ResolvedKey,
+  resolveKeys,
+  type Study,
+} from "../domain/model";
+import { defaultProfile, profiles } from "../domain/profiles";
+import { textureSource } from "./artwork";
+import ContactShadow from "./ContactShadow";
 import {
   configureCamera,
-  updateCameraProjection,
-  PHOTO_FOV,
   layoutFrameScale,
+  PHOTO_FOV,
+  updateCameraProjection,
 } from "./camera";
-import ContactShadow from "./ContactShadow";
-import { studioEnvironment, createGrainTexture } from "./studio";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import {
-  resolveKeys,
-  getLayout,
-  type Study,
-  type ResolvedKey,
-} from "../domain/model";
-import { textureSource } from "./artwork";
 import { createKeyGeometry, keyPosition } from "./profile";
-import { VIEW_ASPECT, type CameraPose, type SceneSettings } from "./settings";
+import { type CameraPose, type SceneSettings, VIEW_ASPECT } from "./settings";
+import { settledUpdate } from "./settled-update";
+import { createGrainTexture, studioEnvironment } from "./studio";
+
 const INITIAL_CAMERA = {
   position: [130, 240, 260] as [number, number, number],
   zoom: 1,

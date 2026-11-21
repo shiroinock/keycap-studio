@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { settledUpdate } from "./settled-update";
+
 afterEach(() => vi.useRealTimers());
 it("publishes only the final value after a burst of wheel start/end events", () => {
   vi.useFakeTimers();

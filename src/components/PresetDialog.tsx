@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { layoutPresets } from "../domain/presets";
-import type { Layout } from "../domain/layout";
 import { switchLayout } from "../domain/design-layout";
+import type { Layout } from "../domain/layout";
 import type { Study } from "../domain/model";
+import { layoutPresets } from "../domain/presets";
 import Keyboard from "./Keyboard";
 export default function PresetDialog({
   template,

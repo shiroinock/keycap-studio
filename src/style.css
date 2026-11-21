@@ -1,18 +1,13 @@
 :root {
   font-family:
-    "DM Sans",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Hiragino Kaku Gothic ProN",
-    "Yu Gothic",
-    sans-serif;
+    "DM Sans", -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN",
+    "Yu Gothic", sans-serif;
   color: #353535;
   background: #f7f7f7;
   font-synthesis: none;
   font-weight: 400;
   font-size: 13px;
   line-height: 1.6;
-  font-synthesis: none;
 }
 * {
   box-sizing: border-box;
@@ -690,7 +685,7 @@ input[type="color"]::-webkit-color-swatch {
     grid-template-columns: 1fr 1fr;
   }
   .key-editor {
-    grid-column: 1/-1;
+    grid-column: 1 / -1;
   }
   .key-editor > .two-fields {
     display: inline-grid;
@@ -859,8 +854,8 @@ dialog.export-dialog {
   width: 100%;
   height: auto;
   margin: 20px 0;
-  background: repeating-conic-gradient(#ededed 0% 25%, #f9f9f9 0% 50%) 50% /
-    20px 20px;
+  background:
+    repeating-conic-gradient(#ededed 0% 25%, #f9f9f9 0% 50%) 50% / 20px 20px;
 }
 .download-link {
   display: inline-flex;
@@ -1014,7 +1009,7 @@ dialog.export-dialog {
 .kle-modal textarea {
   min-height: 160px;
   resize: vertical;
-  font: 12px/1.5 monospace;
+  font: 12px / 1.5 monospace;
 }
 .kle-preview {
   margin-top: 16px;

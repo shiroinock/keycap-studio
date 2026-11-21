@@ -1,11 +1,12 @@
-import { it, expect } from "vitest";
-import { profileIds, profiles, rowName } from "./profiles";
-import { ansi60 } from "./layout";
-import { samples, resolveKeys, parseLibrary } from "./model";
-import { switchLayout } from "./design-layout";
-import { layoutPresets } from "./presets";
-import { createKeyGeometry, keyDimensions } from "../three/profile";
+import { expect, it } from "vitest";
 import { serialize } from "../storage/library";
+import { createKeyGeometry, keyDimensions } from "../three/profile";
+import { switchLayout } from "./design-layout";
+import { ansi60 } from "./layout";
+import { parseLibrary, resolveKeys, samples } from "./model";
+import { layoutPresets } from "./presets";
+import { profileIds, profiles, rowName } from "./profiles";
+
 it("renders and round trips every profile, including spherical tops and shaped Enter", () => {
   const layout = layoutPresets.find(
     (p) => p.layout.id === "preset-fullsize_jis-v1",

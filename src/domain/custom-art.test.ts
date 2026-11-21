@@ -1,12 +1,13 @@
 import { expect, it } from "vitest";
-import { defaultArt } from "./custom-art";
-import { samples, parseLibrary, resolveKeys, duplicateStudy } from "./model";
+import { legendMarkup, renderSvg } from "../renderer/svg";
 import { serialize } from "../storage/library";
-import { renderSvg, legendMarkup } from "../renderer/svg";
 import { textureSource } from "../three/artwork";
-import { layoutPresets } from "./presets";
+import { defaultArt } from "./custom-art";
 import { switchLayout } from "./design-layout";
 import { getKit, kitArtwork } from "./kit";
+import { duplicateStudy, parseLibrary, resolveKeys, samples } from "./model";
+import { layoutPresets } from "./presets";
+
 const png =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==";
 function fixture() {

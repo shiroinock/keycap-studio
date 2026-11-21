@@ -1,5 +1,5 @@
-import { customArtSchema } from "./custom-art";
 import { z } from "zod";
+import { customArtSchema } from "./custom-art";
 export const kitKeySchema = z
   .object({
     id: z.string().min(1).max(100),

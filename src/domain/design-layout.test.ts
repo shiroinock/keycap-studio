@@ -1,12 +1,13 @@
 import { expect, it } from "vitest";
-import { samples, resolveKeys, parseLibrary, duplicateStudy } from "./model";
+import { serialize } from "../storage/library";
+import { createKeyGeometry } from "../three/profile";
+import { coverage } from "./coverage";
 import { switchLayout } from "./design-layout";
 import { ansi60 } from "./layout";
+import { duplicateStudy, parseLibrary, resolveKeys, samples } from "./model";
 import { layoutPresets } from "./presets";
-import { serialize } from "../storage/library";
-import { coverage } from "./coverage";
-import { createKeyGeometry } from "../three/profile";
 import { profileIds } from "./profiles";
+
 const preset = (id: string) =>
   layoutPresets.find((p) => p.layout.id === id)!.layout;
 it("keeps a single design and shared artwork when changing layouts, including missing keys", () => {

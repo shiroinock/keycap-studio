@@ -1,47 +1,50 @@
-import KitVariantPicker from "./components/KitVariantPicker";
-import { restoreStudy, type DeletedStudy } from "./domain/library-actions";
-import KitEditor from "./components/KitEditor";
-import KitCoverage from "./components/KitCoverage";
-import { profiles, profileIds, defaultProfile } from "./domain/profiles";
 import {
+  type ChangeEvent,
   lazy,
   Suspense,
   useCallback,
   useEffect,
   useRef,
   useState,
-  type ChangeEvent,
 } from "react";
 import Keyboard from "./components/Keyboard";
+import KitCoverage from "./components/KitCoverage";
+import KitEditor from "./components/KitEditor";
+import KitVariantPicker from "./components/KitVariantPicker";
 import SceneToolbar from "./components/SceneToolbar";
-import { DEFAULT_SCENE, ANGLED, type CameraPose } from "./three/settings";
+import { type DeletedStudy, restoreStudy } from "./domain/library-actions";
+import { defaultProfile, profileIds, profiles } from "./domain/profiles";
 import type { Capture3D } from "./three/Keyboard3D";
+import { ANGLED, type CameraPose, DEFAULT_SCENE } from "./three/settings";
+
 const Keyboard3D = lazy(() => import("./three/Keyboard3D"));
-import { availableLayouts, switchLayout } from "./domain/design-layout";
-import PresetDialog from "./components/PresetDialog";
-import KLEImportDialog from "./components/KLEImportDialog";
-import ImportDialog from "./components/ImportDialog";
-import HexInput from "./components/HexInput";
+
 import ExportDialog, { type ExportArtifact } from "./components/ExportDialog";
-import { layoutSignature, type Layout } from "./domain/layout";
+import HexInput from "./components/HexInput";
+import ImportDialog from "./components/ImportDialog";
+import KLEImportDialog from "./components/KLEImportDialog";
+import PresetDialog from "./components/PresetDialog";
+import { availableLayouts, switchLayout } from "./domain/design-layout";
+import { type Layout, layoutSignature } from "./domain/layout";
 import {
-  samples,
-  getLayout,
-  roles,
-  roleLabels,
   duplicateStudy,
+  getLayout,
   mergeLibraries,
   parseLibrary,
+  roleLabels,
+  roles,
   type Study,
+  samples,
 } from "./domain/model";
+import { download, pngBlob, renderSvg, safeName } from "./renderer/svg";
 import {
+  LEGACY_STORAGE_KEY,
   loadLibrary,
+  STORAGE_KEY,
   saveLibrary,
   serialize,
-  STORAGE_KEY,
-  LEGACY_STORAGE_KEY,
 } from "./storage/library";
-import { download, pngBlob, renderSvg, safeName } from "./renderer/svg";
+
 function initial() {
   try {
     return {

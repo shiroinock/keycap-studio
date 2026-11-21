@@ -1,5 +1,5 @@
-import { keyRects } from "./key-shape";
 import { z } from "zod";
+import { keyRects } from "./key-shape";
 export type KeyRole = "base" | "modifier" | "accent";
 export interface LayoutKey {
   id: string;

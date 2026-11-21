@@ -1,10 +1,10 @@
-import { useState, type ChangeEvent } from "react";
+import { type ChangeEvent, useState } from "react";
+import { importArtwork } from "../artwork/import";
 import {
-  defaultArt,
   type ArtworkAsset,
   type CustomArt,
+  defaultArt,
 } from "../domain/custom-art";
-import { importArtwork } from "../artwork/import";
 export default function CustomArtwork({
   assets,
   value,
