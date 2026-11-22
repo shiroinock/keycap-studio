@@ -1,5 +1,7 @@
 # Keycap Studio
 
+[![dept](https://raw.githubusercontent.com/shiroinock/keycap-studio/dept-badge/dept.svg)](https://github.com/shiroinock/keycap-studio/blob/dept-badge/dept.md)
+
 キーキャップセットのデザイン案を、実際の配列上で作成・編集・保存するWebアプリ。
 
 **M1〜M4.1a＋KLE配列インポートを実装済み。** 2D編集とReact Three Fiberの3Dプレビューをローカルで利用できます。Blender連携は次の段階です。
