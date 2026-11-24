@@ -1,0 +1,231 @@
+{
+  "lockfile": "./pnpm-lock.yaml",
+  "format": "pnpm-lock.yaml",
+  "weights": {
+    "major": 30,
+    "minor": 3,
+    "patch": 1
+  },
+  "total": 3,
+  "lag": {
+    "major": 0,
+    "minor": 0,
+    "patch": 3
+  },
+  "packages": 15,
+  "outdated": 3,
+  "errors": 0,
+  "libyear": 0.30693221284254824,
+  "rows": [
+    {
+      "name": "@biomejs/biome",
+      "package": "@biomejs/biome",
+      "kind": "dev",
+      "current": "2.6.8",
+      "latest": "2.6.9",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 1
+      },
+      "score": 1,
+      "libyear": 0.02471566278804472
+    },
+    {
+      "name": "@types/node",
+      "package": "@types/node",
+      "kind": "dev",
+      "current": "26.6.6",
+      "latest": "26.6.7",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 1
+      },
+      "score": 1,
+      "libyear": 0.07403272111947677
+    },
+    {
+      "name": "@types/react",
+      "package": "@types/react",
+      "kind": "dev",
+      "current": "19.3.0",
+      "latest": "19.3.1",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 1
+      },
+      "score": 1,
+      "libyear": 0.20818382893502674
+    },
+    {
+      "name": "@ijprest/kle-serial",
+      "package": "@ijprest/kle-serial",
+      "kind": "prod",
+      "current": "0.15.1",
+      "latest": "0.15.1",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "@react-three/fiber",
+      "package": "@react-three/fiber",
+      "kind": "prod",
+      "current": "9.8.2",
+      "latest": "9.8.2",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "@types/react-dom",
+      "package": "@types/react-dom",
+      "kind": "dev",
+      "current": "19.3.0",
+      "latest": "19.3.0",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "@types/three",
+      "package": "@types/three",
+      "kind": "dev",
+      "current": "0.187.0",
+      "latest": "0.187.0",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "package": "@vitejs/plugin-react",
+      "kind": "dev",
+      "current": "6.3.0",
+      "latest": "6.3.0",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "react",
+      "package": "react",
+      "kind": "prod",
+      "current": "19.3.1",
+      "latest": "19.3.1",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "react-dom",
+      "package": "react-dom",
+      "kind": "prod",
+      "current": "19.3.1",
+      "latest": "19.3.1",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "three",
+      "package": "three",
+      "kind": "prod",
+      "current": "0.187.0",
+      "latest": "0.187.0",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "typescript",
+      "package": "typescript",
+      "kind": "dev",
+      "current": "7.0.2",
+      "latest": "7.0.2",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "vite",
+      "package": "vite",
+      "kind": "dev",
+      "current": "8.3.8",
+      "latest": "8.3.8",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "vitest",
+      "package": "vitest",
+      "kind": "dev",
+      "current": "5.1.1",
+      "latest": "5.1.1",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    },
+    {
+      "name": "zod",
+      "package": "zod",
+      "kind": "prod",
+      "current": "4.6.7",
+      "latest": "4.6.7",
+      "lag": {
+        "major": 0,
+        "minor": 0,
+        "patch": 0
+      },
+      "score": 0,
+      "libyear": 0.0
+    }
+  ]
+}
