@@ -6,7 +6,7 @@ name: Claude で CI を直す
 on:
   # Runs from the default branch's copy of this file, with secrets; the job itself only takes
   # branches of this repository whose PR a person opened.
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers] the job takes only this repository's PR branches
     workflows: ["CI"] # the name of the CI workflow to watch
     types: [completed]
 
@@ -14,7 +14,7 @@ permissions: {}
 
 jobs:
   fix:
-    uses: shiroinock/workflows/.github/workflows/claude-fix-ci.yml@main
+    uses: shiroinock/workflows/.github/workflows/claude-fix-ci.yml@main # zizmor: ignore[unpinned-uses] the owner's own shared jobs, followed at main on purpose
     permissions:
       contents: read
       pull-requests: write
